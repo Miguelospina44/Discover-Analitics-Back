@@ -1,0 +1,19 @@
+{
+  "name": "Discover Analytics (full stack)",
+  "install": "bash .cursor/install.sh",
+  "start": "bash .cursor/start.sh",
+  "terminals": [
+    {
+      "name": "backend-api",
+      "command": "cd /agent/repos/Discover-Analitics-Back && . .venv/bin/activate && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    },
+    {
+      "name": "frontend-web",
+      "command": "if [ -d /agent/repos/Discover-Analitics-Front ]; then cd /agent/repos/Discover-Analitics-Front && npm run dev; else echo 'Discover-Analitics-Front not checked out; frontend disabled' && tail -f /dev/null; fi"
+    }
+  ],
+  "ports": [8000, 3001],
+  "repositoryDependencies": [
+    "github.com/Miguelospina44/Discover-Analitics-Front"
+  ]
+}
