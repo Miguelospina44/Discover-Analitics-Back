@@ -1,7 +1,8 @@
-from app.domain.measures import SALES_BY_NIGHT
-from app.data.sales_repository import SalesPoint, quality_for_sales
 from datetime import date
 from uuid import uuid4
+
+from app.data.sales_repository import SalesPoint, quality_for_sales
+from app.domain.measures import SALES_BY_NIGHT
 
 
 def test_sales_meta_exists() -> None:
