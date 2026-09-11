@@ -14,6 +14,30 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class MeResponse(BaseModel):
+    email: EmailStr
+    role: str
+    account_id: UUID
+    account_name: str | None
+
+
+class AccountOut(BaseModel):
+    id: UUID
+    name: str
+    slug: str
+
+    model_config = {"from_attributes": True}
+
+
+class VenueOut(BaseModel):
+    venue_id: UUID
+    account_id: UUID
+    name: str
+    city: str
+
+    model_config = {"from_attributes": True}
+
+
 class EngagementCreate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     client_name: str = Field(min_length=2, max_length=200)
@@ -42,6 +66,15 @@ class AttendancePointOut(BaseModel):
     venue_id: UUID
     night_date: date
     redeemed_tickets: int
+    account_id: UUID | None = None
+
+
+class SalesPointOut(BaseModel):
+    venue_id: UUID
+    night_date: date
+    order_count: int
+    revenue_cents: int
+    account_id: UUID | None = None
 
 
 class MeasureResponse(BaseModel):
@@ -51,7 +84,58 @@ class MeasureResponse(BaseModel):
     definition: str
     as_of: date | None
     data_quality: str
+    data_source: str
+    scope: str
     points: list[AttendancePointOut]
+
+
+class SalesMeasureResponse(BaseModel):
+    name: str
+    title: str
+    unit: str
+    definition: str
+    as_of: date | None
+    data_quality: str
+    data_source: str
+    scope: str
+    points: list[SalesPointOut]
+
+
+class GremialBenchmarksResponse(BaseModel):
+    period_start: date
+    period_end: date
+    avg_tickets_per_venue_night: float | None
+    median_tickets_per_venue_night: float | None
+    avg_orders_per_venue_night: float | None
+    median_orders_per_venue_night: float | None
+    accounts_in_sample: int
+    nights_in_sample: int
+    share_woman: float | None = None
+    share_man: float | None = None
+    share_other: float | None = None
+    share_undisclosed: float | None = None
+    note: str = (
+        "Promedios anónimos del ecosistema. Sin nombres de clientes ni breakdown por venue ajeno."
+    )
+
+
+class GenderPointOut(BaseModel):
+    gender: str
+    headcount: int
+    share: float
+    account_id: UUID | None = None
+
+
+class GenderMeasureResponse(BaseModel):
+    name: str
+    title: str
+    unit: str
+    definition: str
+    as_of: date | None
+    data_quality: str
+    data_source: str
+    scope: str
+    points: list[GenderPointOut]
 
 
 class FindingCreate(BaseModel):

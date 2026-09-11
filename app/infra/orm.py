@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Date, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import BigInteger, Date, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -17,6 +17,16 @@ class AnalyticsUser(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     account_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Account(Base):
+    __tablename__ = "accounts"
+    __table_args__ = {"schema": "analytics"}
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    slug: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -74,3 +84,62 @@ class Recommendation(Base):
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending_decision")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class DimVenue(Base):
+    __tablename__ = "dim_venues"
+    __table_args__ = {"schema": "analytics"}
+
+    venue_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
+    account_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    city: Mapped[str] = mapped_column(String(120), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FactNightlyAttendance(Base):
+    __tablename__ = "fact_nightly_attendance"
+    __table_args__ = {"schema": "analytics"}
+
+    account_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
+    venue_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("analytics.dim_venues.venue_id"), primary_key=True
+    )
+    night_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    redeemed_tickets: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class FactSalesByNight(Base):
+    __tablename__ = "fact_sales_by_night"
+    __table_args__ = {"schema": "analytics"}
+
+    account_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
+    venue_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("analytics.dim_venues.venue_id"), primary_key=True
+    )
+    night_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    order_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    revenue_cents: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+
+class FactAttendanceByGender(Base):
+    __tablename__ = "fact_attendance_by_gender"
+    __table_args__ = {"schema": "analytics"}
+
+    account_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
+    night_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    gender: Mapped[str] = mapped_column(String(32), primary_key=True)
+    headcount: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class FactAttendanceDetail(Base):
+    __tablename__ = "fact_attendance_detail"
+    __table_args__ = {"schema": "analytics"}
+
+    account_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
+    venue_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("analytics.dim_venues.venue_id"), primary_key=True
+    )
+    night_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    gender: Mapped[str] = mapped_column(String(32), primary_key=True)
+    headcount: Mapped[int] = mapped_column(Integer, nullable=False)

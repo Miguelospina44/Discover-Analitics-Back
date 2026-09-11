@@ -1,0 +1,88 @@
+// Import in https://dbdiagram.io — Discover Analytics Fase A (discover_analytics)
+
+Table analytics_users {
+  id uuid [pk]
+  email varchar(255) [unique, not null]
+  password_hash varchar(255) [not null]
+  role varchar(32) [not null]
+  account_id uuid [not null, note: 'tenant']
+  created_at timestamptz
+}
+
+Table analytics_engagements {
+  id uuid [pk]
+  account_id uuid [not null]
+  title varchar(200) [not null]
+  client_name varchar(200) [not null]
+  period_start date [not null]
+  period_end date [not null]
+  scope text [not null]
+  objectives text [not null]
+  status varchar(32) [not null]
+  created_at timestamptz
+}
+
+Table analytics_findings {
+  id uuid [pk]
+  account_id uuid [not null]
+  engagement_id uuid [not null]
+  title varchar(200) [not null]
+  evidence text [not null]
+  visual_id varchar(80)
+  impact varchar(32) [not null]
+  confidence varchar(32) [not null]
+  review_status varchar(32) [not null]
+  created_at timestamptz
+}
+
+Table analytics_recommendations {
+  id uuid [pk]
+  account_id uuid [not null]
+  engagement_id uuid [not null]
+  finding_id uuid
+  action text [not null]
+  expected_impact text [not null]
+  effort varchar(32) [not null]
+  priority varchar(32) [not null]
+  owner varchar(120) [not null]
+  due_date date
+  status varchar(32) [not null]
+  created_at timestamptz
+}
+
+Table analytics_dim_venues {
+  venue_id uuid [pk]
+  account_id uuid [not null]
+  name varchar(200) [not null]
+  city varchar(120) [not null]
+  created_at timestamptz
+}
+
+Table analytics_fact_nightly_attendance {
+  account_id uuid [not null]
+  venue_id uuid [not null]
+  night_date date [not null]
+  redeemed_tickets int [not null]
+
+  indexes {
+    (account_id, venue_id, night_date) [pk]
+  }
+}
+
+Table analytics_fact_sales_by_night {
+  account_id uuid [not null]
+  venue_id uuid [not null]
+  night_date date [not null]
+  order_count int [not null]
+  revenue_cents bigint [not null]
+
+  indexes {
+    (account_id, venue_id, night_date) [pk]
+  }
+}
+
+Ref: analytics_findings.engagement_id > analytics_engagements.id
+Ref: analytics_recommendations.engagement_id > analytics_engagements.id
+Ref: analytics_recommendations.finding_id > analytics_findings.id
+Ref: analytics_fact_nightly_attendance.venue_id > analytics_dim_venues.venue_id
+Ref: analytics_fact_sales_by_night.venue_id > analytics_dim_venues.venue_id

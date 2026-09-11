@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.errors import register_error_handlers
-from app.api.v1 import auth, consulting, engagements, health, metrics
+from app.api.v1 import accounts, auth, consulting, engagements, health, metrics, venues
 from app.bootstrap import ensure_bootstrap_admin
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -38,6 +38,8 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
     app.include_router(health.router)
     app.include_router(auth.router, prefix=settings.api_prefix)
+    app.include_router(accounts.router, prefix=settings.api_prefix)
+    app.include_router(venues.router, prefix=settings.api_prefix)
     app.include_router(engagements.router, prefix=settings.api_prefix)
     app.include_router(metrics.router, prefix=settings.api_prefix)
     app.include_router(consulting.router, prefix=settings.api_prefix)

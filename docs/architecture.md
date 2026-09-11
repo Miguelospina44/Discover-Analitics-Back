@@ -26,13 +26,13 @@ HTTP  →  api/v1 (Pydantic, RBAC)
 - **Domain:** medidas con unidad, formato, definición y `as_of`. Hallazgos/recomendaciones son metadatos, no copias de `orders`.
 - **API:** `/api/v1`, errores sin internals, alcance por `account_id`.
 
-## Una base, dos responsabilidades
+## Una base de app, puente opcional a Discover
 
-Discover (`public`): `accounts`, `venues`, `events`, `orders`, `tickets`, `users`, tracking. Este API **no** los migra ni los duplica.
+**Fase A (actual):** Postgres `discover_analytics`. Schema `analytics` con auth, consultoría y facts seed. `DATA_SOURCE=seed`.
 
-Schema `analytics`: usuarios de esta app, engagements, findings, recommendations, hipótesis/escenarios/plan (fases posteriores), y vistas agregadas.
+**Fase B:** misma API; `DATA_SOURCE=discover`; métricas leen vistas sobre tablas `public` de Discover. Ver [phase-b-discover.md](phase-b-discover.md) y ADR 0005.
 
-Supuesto: `venues.account_id` es el tenant. Si es nulo, el venue no entra en analítica.
+Discover (`public`) no se migra desde este repo.
 
 ## Flujo de un corte vertical
 
