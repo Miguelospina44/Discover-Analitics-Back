@@ -19,6 +19,7 @@ ACCOUNT_FK_MODELS = [
     orm.FactSalesByNight,
     orm.FactAttendanceByGender,
     orm.FactAttendanceDetail,
+    orm.DimEvent,
 ]
 
 
