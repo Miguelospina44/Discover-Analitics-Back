@@ -10,6 +10,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
@@ -129,6 +130,38 @@ class DimVenue(Base):
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     city: Mapped[str] = mapped_column(String(120), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+_EVENT_TYPES = ("regular", "especial", "privado", "festival", "otro")
+_EVENT_TYPES_CSV = ", ".join(f"'{t}'" for t in _EVENT_TYPES)
+
+
+class DimEvent(Base):
+    __tablename__ = "dim_event"
+    __table_args__ = (
+        CheckConstraint(
+            f"event_type IN ({_EVENT_TYPES_CSV})", name="ck_dim_event_type_allowed"
+        ),
+        UniqueConstraint(
+            "venue_id", "event_date", "name", name="uq_dim_event_venue_date_name"
+        ),
+        {"schema": "analytics"},
+    )
+
+    event_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    account_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), _account_fk("fk_dim_event_account"), nullable=False, index=True
+    )
+    venue_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("analytics.dim_venues.venue_id"),
+        nullable=False,
+        index=True,
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(32), nullable=False, default="regular")
+    event_date: Mapped[date] = mapped_column(Date, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
