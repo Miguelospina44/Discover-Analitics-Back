@@ -60,7 +60,43 @@ SEED_BENCH_SQL = text(
     """
 )
 
-DISCOVER_BENCH_SQL = SEED_BENCH_SQL
+# Fase B: benchmarks derived from the read-only views over Discover `public`
+# tables. The views expose tickets/orders per venue-night but carry NO gender
+# breakdown, so gender shares are NULL here (see docs/phase-b-discover.md).
+DISCOVER_BENCH_SQL = text(
+    """
+    SELECT
+      (SELECT AVG(redeemed_tickets)::float
+         FROM analytics.v_nightly_attendance
+        WHERE night_date >= :period_start AND night_date <= :period_end
+      ) AS avg_tickets_per_venue_night,
+      (SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY redeemed_tickets)
+         FROM analytics.v_nightly_attendance
+        WHERE night_date >= :period_start AND night_date <= :period_end
+      ) AS median_tickets_per_venue_night,
+      (SELECT AVG(order_count)::float
+         FROM analytics.v_sales_by_night
+        WHERE night_date >= :period_start AND night_date <= :period_end
+      ) AS avg_orders_per_venue_night,
+      (SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY order_count)
+         FROM analytics.v_sales_by_night
+        WHERE night_date >= :period_start AND night_date <= :period_end
+      ) AS median_orders_per_venue_night,
+      (SELECT COUNT(DISTINCT account_id)
+         FROM analytics.v_nightly_attendance
+        WHERE night_date >= :period_start AND night_date <= :period_end
+      ) AS accounts_in_sample,
+      (SELECT COUNT(*)
+         FROM analytics.v_nightly_attendance
+        WHERE night_date >= :period_start AND night_date <= :period_end
+      ) AS nights_in_sample,
+      NULL::float AS sum_woman,
+      NULL::float AS sum_man,
+      NULL::float AS sum_other,
+      NULL::float AS sum_undisclosed,
+      NULL::float AS sum_gender_total
+    """
+)
 
 
 @dataclass(frozen=True)
