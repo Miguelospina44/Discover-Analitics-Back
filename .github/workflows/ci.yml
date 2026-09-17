@@ -3,9 +3,27 @@ on:
   push:
     branches: [main, dev]
   pull_request:
+    branches: [main, dev]
+env:
+  DATABASE_URL: postgresql+asyncpg://postgres:change-me@127.0.0.1:5432/analytics_citest
+  ALEMBIC_DATABASE_URL: postgresql+psycopg://postgres:change-me@127.0.0.1:5432/analytics_citest
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: change-me
+          POSTGRES_DB: analytics_citest
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d analytics_citest"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -13,4 +31,5 @@ jobs:
           python-version: "3.11"
       - run: pip install -e ".[dev]"
       - run: ruff check app tests
+      - run: alembic upgrade head
       - run: pytest
