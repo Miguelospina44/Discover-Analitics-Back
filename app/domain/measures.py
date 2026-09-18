@@ -52,7 +52,60 @@ ATTENDANCE_BY_GENDER = MeasureMeta(
     data_quality="missing",
 )
 
+EVENT_PERFORMANCE = MeasureMeta(
+    name="event_performance",
+    title="Desempeño por evento",
+    unit="mixto",
+    definition=(
+        "Desempeño derivado de cada evento (una noche en un venue). Une dim_event a los "
+        "hechos por-noche existentes sobre (account_id, venue_id, event_date = night_date): "
+        "tickets redimidos, órdenes y revenue, y mix de género. No hay tabla física de "
+        "hechos por evento; se lee de la vista analytics.v_event_performance."
+    ),
+    as_of=None,
+    data_quality="missing",
+)
+
 GenderCode = Literal["woman", "man", "other", "undisclosed"]
+
+
+@dataclass(frozen=True)
+class EventPerformance:
+    event_id: UUID
+    account_id: UUID
+    venue_id: UUID
+    name: str
+    event_type: str
+    event_date: date
+    redeemed_tickets: int | None = None
+    order_count: int | None = None
+    revenue_cents: int | None = None
+    headcount_woman: int | None = None
+    headcount_man: int | None = None
+    headcount_other: int | None = None
+    headcount_undisclosed: int | None = None
+    headcount_total: int | None = None
+
+
+def quality_for_event_performance(perf: EventPerformance | None) -> Quality:
+    """Calidad del desempeño derivado de un evento.
+
+    missing: no hay evento o no hay ningún hecho por-noche asociado.
+    partial: hay hechos pero falta alguna métrica (asistencia, ventas o género).
+    ok: asistencia, ventas y género están presentes.
+    """
+    if perf is None:
+        return "missing"
+    if perf.redeemed_tickets is None and perf.order_count is None and perf.headcount_total is None:
+        return "missing"
+    if (
+        perf.redeemed_tickets is None
+        or perf.order_count is None
+        or perf.revenue_cents is None
+        or perf.headcount_total is None
+    ):
+        return "partial"
+    return "ok"
 
 
 @dataclass(frozen=True)

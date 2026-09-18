@@ -38,6 +38,42 @@ class VenueOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class EventOut(BaseModel):
+    event_id: UUID
+    account_id: UUID
+    venue_id: UUID
+    name: str
+    event_type: str
+    event_date: date
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class EventPerformanceOut(BaseModel):
+    redeemed_tickets: int | None = None
+    order_count: int | None = None
+    revenue_cents: int | None = None
+    headcount_woman: int | None = None
+    headcount_man: int | None = None
+    headcount_other: int | None = None
+    headcount_undisclosed: int | None = None
+    headcount_total: int | None = None
+
+
+class EventPerformanceResponse(BaseModel):
+    name: str
+    title: str
+    unit: str
+    definition: str
+    as_of: date | None
+    data_quality: str
+    data_source: str
+    scope: str
+    event: EventOut
+    performance: EventPerformanceOut
+
+
 class EngagementCreate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     client_name: str = Field(min_length=2, max_length=200)
