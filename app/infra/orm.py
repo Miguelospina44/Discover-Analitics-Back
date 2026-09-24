@@ -165,6 +165,29 @@ class DimEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class Lead(Base):
+    """Lead-capture público (PII), separado de la analítica anónima.
+
+    NOTA DE PRIVACIDAD (producción): esta tabla guarda datos personales
+    (nombre, teléfono, fecha de nacimiento, correo). Antes de usarla con datos
+    reales se requiere consentimiento explícito, política de retención y manejo
+    de habeas data. No lleva account_id/tenant FK: son leads públicos.
+    """
+
+    __tablename__ = "leads"
+    __table_args__ = {"schema": "analytics"}
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    phone: Mapped[str] = mapped_column(String(50), nullable=False)
+    birth_date: Mapped[date] = mapped_column(Date, nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    source: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
 class FactNightlyAttendance(Base):
     __tablename__ = "fact_nightly_attendance"
     __table_args__ = {"schema": "analytics"}
