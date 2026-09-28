@@ -20,6 +20,7 @@ ACCOUNT_FK_MODELS = [
     orm.FactAttendanceByGender,
     orm.FactAttendanceDetail,
     orm.DimEvent,
+    orm.FactAudienceProfile,
 ]
 
 

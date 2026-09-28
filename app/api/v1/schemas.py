@@ -174,6 +174,29 @@ class GenderMeasureResponse(BaseModel):
     points: list[GenderPointOut]
 
 
+class AudienceSegmentOut(BaseModel):
+    """Un bucket anónimo de audiencia (sin PII): conteo + share en su dimensión."""
+
+    dimension: str
+    key: str
+    headcount: int
+    share: float
+
+
+class AudienceProfileResponse(BaseModel):
+    name: str
+    title: str
+    unit: str
+    definition: str
+    as_of: date | None
+    data_quality: str
+    data_source: str
+    scope: str
+    period_start: date
+    period_end: date
+    segments: list[AudienceSegmentOut]
+
+
 class FindingCreate(BaseModel):
     engagement_id: UUID
     title: str

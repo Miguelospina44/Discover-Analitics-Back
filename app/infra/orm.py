@@ -242,3 +242,50 @@ class FactAttendanceDetail(Base):
     night_date: Mapped[date] = mapped_column(Date, primary_key=True)
     gender: Mapped[str] = mapped_column(String(32), primary_key=True)
     headcount: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+_AUDIENCE_GENDERS = ("woman", "man", "other", "undisclosed")
+_AUDIENCE_GENDERS_CSV = ", ".join(f"'{g}'" for g in _AUDIENCE_GENDERS)
+_AUDIENCE_AGE_BANDS = ("18-24", "25-34", "35-44", "45+", "undisclosed")
+_AUDIENCE_AGE_BANDS_CSV = ", ".join(f"'{a}'" for a in _AUDIENCE_AGE_BANDS)
+_AUDIENCE_RECURRENCES = ("nuevo", "recurrente", "undisclosed")
+_AUDIENCE_RECURRENCES_CSV = ", ".join(f"'{r}'" for r in _AUDIENCE_RECURRENCES)
+
+
+class FactAudienceProfile(Base):
+    """Segmentación ANÓNIMA de audiencia (Fase D, ¿quién es mi público?).
+
+    INVARIANTE DE PRIVACIDAD: cada fila es un AGREGADO anónimo — un headcount por
+    combinación de buckets (gender, age_band, zone, recurrence) en una noche y
+    cuenta. NUNCA se almacena ni se expone dato personal (nombres, correos,
+    teléfonos ni filas por individuo). Solo conteos por segmento, de los que se
+    derivan shares. Ver migración 0009_audience_profile.
+    """
+
+    __tablename__ = "fact_audience_profile"
+    __table_args__ = (
+        CheckConstraint(
+            f"gender IN ({_AUDIENCE_GENDERS_CSV})",
+            name="ck_fact_audience_profile_gender",
+        ),
+        CheckConstraint(
+            f"age_band IN ({_AUDIENCE_AGE_BANDS_CSV})",
+            name="ck_fact_audience_profile_age_band",
+        ),
+        CheckConstraint(
+            f"recurrence IN ({_AUDIENCE_RECURRENCES_CSV})",
+            name="ck_fact_audience_profile_recurrence",
+        ),
+        CheckConstraint("headcount >= 0", name="ck_fact_audience_profile_headcount"),
+        {"schema": "analytics"},
+    )
+
+    account_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), _account_fk("fk_fact_audience_profile_account"), primary_key=True
+    )
+    night_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    gender: Mapped[str] = mapped_column(String(32), primary_key=True)
+    age_band: Mapped[str] = mapped_column(String(32), primary_key=True)
+    zone: Mapped[str] = mapped_column(String(120), primary_key=True)
+    recurrence: Mapped[str] = mapped_column(String(32), primary_key=True)
+    headcount: Mapped[int] = mapped_column(Integer, nullable=False)
