@@ -66,7 +66,24 @@ EVENT_PERFORMANCE = MeasureMeta(
     data_quality="missing",
 )
 
+AUDIENCE_PROFILE = MeasureMeta(
+    name="audience_profile",
+    title="Tu público",
+    unit="headcount_and_share",
+    definition=(
+        "Segmentación ANÓNIMA de la audiencia: conteos y shares por bucket "
+        "(género, rango de edad, zona y recurrencia nuevo vs recurrente). Son "
+        "agregados sin ninguna identidad ni dato personal; sirven para decidir a "
+        "quién dirigir el evento o la promo."
+    ),
+    as_of=None,
+    data_quality="missing",
+)
+
 GenderCode = Literal["woman", "man", "other", "undisclosed"]
+
+# Dimensiones anónimas de la segmentación de audiencia (Fase D).
+AudienceDimension = Literal["gender", "age_band", "zone", "recurrence"]
 
 
 @dataclass(frozen=True)
@@ -122,6 +139,38 @@ class GenderPoint:
     headcount: int
     share: float
     account_id: UUID | None = None
+
+
+@dataclass(frozen=True)
+class AudienceSegment:
+    """Un bucket anónimo de audiencia: conteo + share dentro de su dimensión.
+
+    Nunca lleva datos personales; ``key`` es la etiqueta del bucket (p. ej.
+    'woman', '25-34', 'Laureles', 'recurrente').
+    """
+
+    dimension: AudienceDimension
+    key: str
+    headcount: int
+    share: float
+
+
+@dataclass(frozen=True)
+class AudienceProfile:
+    """Segmentos anónimos agrupados por dimensión para un scope y período."""
+
+    segments: list[AudienceSegment]
+
+    def by_dimension(self, dimension: AudienceDimension) -> list[AudienceSegment]:
+        return [s for s in self.segments if s.dimension == dimension]
+
+
+def quality_for_audience(segments: list[AudienceSegment]) -> Quality:
+    if not segments:
+        return "missing"
+    if any(segment.headcount == 0 for segment in segments):
+        return "partial"
+    return "ok"
 
 
 def quality_for_points(points: list[AttendancePoint]) -> Quality:

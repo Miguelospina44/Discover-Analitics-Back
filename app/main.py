@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.errors import register_error_handlers
 from app.api.v1 import (
     accounts,
+    audience,
     auth,
     consulting,
     engagements,
@@ -52,6 +53,7 @@ def create_app() -> FastAPI:
     app.include_router(venues.router, prefix=settings.api_prefix)
     app.include_router(engagements.router, prefix=settings.api_prefix)
     app.include_router(metrics.router, prefix=settings.api_prefix)
+    app.include_router(audience.router, prefix=settings.api_prefix)
     app.include_router(events.router, prefix=settings.api_prefix)
     app.include_router(leads.router, prefix=settings.api_prefix)
     app.include_router(consulting.router, prefix=settings.api_prefix)
