@@ -223,6 +223,21 @@ class RecommendationOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class LeadCreate(BaseModel):
+    """Datos que entrega un visitante en el flujo público de captura (PII)."""
+
+    name: str = Field(min_length=2, max_length=200)
+    phone: str = Field(min_length=5, max_length=50)
+    birth_date: date
+    email: EmailStr
+    source: str | None = Field(default=None, max_length=80)
+
+
+class LeadCaptureResponse(BaseModel):
+    id: UUID
+    redirect_url: str
+
+
 class HealthResponse(BaseModel):
     status: str
     app: str
