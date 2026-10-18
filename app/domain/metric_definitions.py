@@ -13,6 +13,10 @@ Quality = Literal["ok", "partial", "missing"]
 MetricPhase = Literal["v1", "v2"]
 ValueLine = Literal["audience", "operations", "sales"]
 PlanLevel = Literal["basic", "intermediate", "premium"]
+# venue = local/grupo (operación continua). organizer = colectivo (evento puntual).
+ActorAudience = Literal["venue", "organizer"]
+VENUE_ONLY: frozenset[ActorAudience] = frozenset({"venue"})
+VENUE_AND_ORGANIZER: frozenset[ActorAudience] = frozenset({"venue", "organizer"})
 
 # COP operational amounts are pesos. Analytics stores revenue_cents = pesos * 100.
 PESOS_TO_CENTS = 100
@@ -52,6 +56,7 @@ class MetricDefinition:
     seed_available: bool
     value_line: ValueLine
     suggested_plan: PlanLevel
+    applies_to: frozenset[ActorAudience]
 
 
 def pesos_to_cents(pesos: int) -> int:
@@ -219,6 +224,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=True,
         value_line="sales",
         suggested_plan="basic",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="average_ticket",
@@ -240,6 +246,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=True,
         value_line="sales",
         suggested_plan="basic",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="tickets_sold",
@@ -265,6 +272,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="sales",
         suggested_plan="basic",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="occupancy",
@@ -286,6 +294,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="operations",
         suggested_plan="intermediate",
+        applies_to=VENUE_ONLY,
     ),
     MetricDefinition(
         key="sellthrough_event",
@@ -308,6 +317,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="operations",
         suggested_plan="intermediate",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="sellthrough_tier",
@@ -329,6 +339,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="operations",
         suggested_plan="premium",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="sales_velocity",
@@ -350,6 +361,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="operations",
         suggested_plan="premium",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="event_comparison",
@@ -371,6 +383,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="operations",
         suggested_plan="premium",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="period_comparison",
@@ -394,6 +407,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=True,
         value_line="sales",
         suggested_plan="intermediate",
+        applies_to=VENUE_ONLY,
     ),
     MetricDefinition(
         key="venue_comparison",
@@ -415,6 +429,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=True,
         value_line="sales",
         suggested_plan="intermediate",
+        applies_to=VENUE_ONLY,
     ),
     MetricDefinition(
         key="buyer_mix",
@@ -443,6 +458,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="audience",
         suggested_plan="premium",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="purchase_peak_hours",
@@ -464,6 +480,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="operations",
         suggested_plan="intermediate",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="activity_by_weekday",
@@ -482,6 +499,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=True,
         value_line="operations",
         suggested_plan="intermediate",
+        applies_to=VENUE_ONLY,
     ),
     MetricDefinition(
         key="nightly_attendance",
@@ -499,6 +517,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=True,
         value_line="operations",
         suggested_plan="basic",
+        applies_to=VENUE_ONLY,
     ),
     MetricDefinition(
         key="sales_by_night_orders",
@@ -524,6 +543,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=True,
         value_line="sales",
         suggested_plan="basic",
+        applies_to=VENUE_ONLY,
     ),
     MetricDefinition(
         key="attendance_by_gender",
@@ -545,6 +565,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=True,
         value_line="audience",
         suggested_plan="premium",
+        applies_to=VENUE_ONLY,
     ),
     MetricDefinition(
         key="market_by_city",
@@ -572,6 +593,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=True,
         value_line="sales",
         suggested_plan="premium",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="market_by_venue_type",
@@ -597,6 +619,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="operations",
         suggested_plan="premium",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="market_by_weekday",
@@ -615,6 +638,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=True,
         value_line="operations",
         suggested_plan="premium",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="market_by_price_band",
@@ -639,6 +663,7 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="sales",
         suggested_plan="premium",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
 )
 
@@ -660,6 +685,7 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="sales",
         suggested_plan="premium",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="refund_rate",
@@ -675,6 +701,7 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="sales",
         suggested_plan="intermediate",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="forecast_vs_actual",
@@ -690,6 +717,7 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="sales",
         suggested_plan="intermediate",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="buyer_ltv",
@@ -705,6 +733,7 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="audience",
         suggested_plan="premium",
+        applies_to=VENUE_ONLY,
     ),
     MetricDefinition(
         key="checkin_duration",
@@ -720,6 +749,7 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="operations",
         suggested_plan="premium",
+        applies_to=VENUE_ONLY,
     ),
     MetricDefinition(
         key="social_engagement",
@@ -735,6 +765,7 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="audience",
         suggested_plan="premium",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="contribution_margin",
@@ -750,6 +781,7 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="sales",
         suggested_plan="premium",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="nps",
@@ -765,6 +797,7 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="audience",
         suggested_plan="premium",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="predictive_sellthrough",
@@ -780,6 +813,7 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="operations",
         suggested_plan="premium",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
     MetricDefinition(
         key="buyer_geo",
@@ -795,6 +829,7 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         seed_available=False,
         value_line="audience",
         suggested_plan="premium",
+        applies_to=VENUE_AND_ORGANIZER,
     ),
 )
 
@@ -818,3 +853,7 @@ def metric_by_key(key: str) -> MetricDefinition:
         if item.key == key:
             return item
     raise KeyError(key)
+
+
+def applies_to_actor(key: str, actor: ActorAudience) -> bool:
+    return actor in metric_by_key(key).applies_to

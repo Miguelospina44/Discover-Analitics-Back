@@ -12,11 +12,17 @@ from dataclasses import dataclass
 from datetime import date
 from uuid import UUID
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.data.sales_repository import SalesPoint, SalesRepository
+from app.domain.analytics_scope import (
+    AnalyticsScope,
+    event_ids_clause,
+    keep_allowed_events,
+    resolve_scope,
+)
 from app.domain.metric_definitions import (
     MIN_COHORT_SIZE,
     average_ticket_cents,
@@ -70,7 +76,7 @@ class TicketNightPoint:
 class EventMetricRow:
     account_id: UUID
     event_id: UUID
-    venue_id: UUID
+    venue_id: UUID | None
     event_date: date
     event_capacity: int | None
     venue_aforo: int | None
@@ -86,7 +92,7 @@ class EventMetricRow:
 class TierSellthrough:
     account_id: UUID
     event_id: UUID
-    venue_id: UUID
+    venue_id: UUID | None
     tier_id: UUID
     tier_price_cop: int | None
     tier_capacity: int | None
@@ -98,7 +104,7 @@ class TierSellthrough:
 class VelocityBucket:
     account_id: UUID
     event_id: UUID
-    venue_id: UUID
+    venue_id: UUID | None
     event_date: date
     window_key: str
     tickets_sold: int
@@ -212,6 +218,30 @@ def _privacy_mix(
     )
 
 
+def redact_venue_fields(row: EventMetricRow) -> EventMetricRow:
+    """Organizers never see host-venue operation (aforo, occupancy, venue_id)."""
+    return EventMetricRow(
+        account_id=row.account_id,
+        event_id=row.event_id,
+        venue_id=None,
+        event_date=row.event_date,
+        event_capacity=row.event_capacity,
+        venue_aforo=None,
+        tickets_sold=row.tickets_sold,
+        tickets_redeemed=row.tickets_redeemed,
+        revenue_cents=row.revenue_cents,
+        sellthrough_pct=row.sellthrough_pct,
+        occupancy_pct=None,
+        average_ticket_cents=row.average_ticket_cents,
+    )
+
+
+def _bind_events(sql: object, scope: AnalyticsScope) -> object:
+    if scope.requires_event_filter and scope.event_ids:
+        return sql.bindparams(bindparam("event_ids", expanding=True))
+    return sql
+
+
 class MetricsRepository:
     def __init__(
         self,
@@ -228,7 +258,11 @@ class MetricsRepository:
         period_start: date,
         period_end: date,
         venue_id: UUID | None = None,
+        scope: AnalyticsScope | None = None,
     ) -> SalesSummary:
+        resolved = resolve_scope(account_id, scope)
+        if not resolved.allows_venue_grain:
+            return SalesSummary(0, 0, None, grain="blocked_organizer")
         points = await self._sales.list_for_scope(
             account_id,
             period_start,
@@ -246,12 +280,13 @@ class MetricsRepository:
         previous_start: date,
         previous_end: date,
         venue_id: UUID | None = None,
+        scope: AnalyticsScope | None = None,
     ) -> PeriodComparison:
         current = await self.sales_for_period(
-            account_id, current_start, current_end, venue_id=venue_id
+            account_id, current_start, current_end, venue_id=venue_id, scope=scope
         )
         previous = await self.sales_for_period(
-            account_id, previous_start, previous_end, venue_id=venue_id
+            account_id, previous_start, previous_end, venue_id=venue_id, scope=scope
         )
         return compare_summaries(current, previous)
 
@@ -260,7 +295,10 @@ class MetricsRepository:
         account_id: UUID,
         period_start: date,
         period_end: date,
+        scope: AnalyticsScope | None = None,
     ) -> list[VenueSalesSummary]:
+        if not resolve_scope(account_id, scope).allows_venue_grain:
+            return []
         points = await self._sales.list_for_scope(account_id, period_start, period_end)
         return group_sales_by_venue(points)
 
@@ -269,8 +307,11 @@ class MetricsRepository:
         account_id: UUID,
         period_start: date,
         period_end: date,
+        scope: AnalyticsScope | None = None,
     ) -> list[WeekdaySales]:
         """Seed-safe weekday mix from nightly sales facts/views."""
+        if not resolve_scope(account_id, scope).allows_venue_grain:
+            return []
         points = await self._sales.list_for_scope(account_id, period_start, period_end)
         return group_sales_by_iso_weekday(points)
 
@@ -280,7 +321,10 @@ class MetricsRepository:
         period_start: date,
         period_end: date,
         venue_id: UUID | None = None,
+        scope: AnalyticsScope | None = None,
     ) -> list[TicketNightPoint]:
+        if not resolve_scope(account_id, scope).allows_venue_grain:
+            return []
         if self._settings.uses_seed_facts:
             return []
         where = [
@@ -323,7 +367,9 @@ class MetricsRepository:
         period_end: date | None = None,
         event_id: UUID | None = None,
         venue_id: UUID | None = None,
+        scope: AnalyticsScope | None = None,
     ) -> list[EventMetricRow]:
+        resolved = resolve_scope(account_id, scope)
         if self._settings.uses_seed_facts:
             return []
         where = ["account_id = :account_id"]
@@ -335,9 +381,15 @@ class MetricsRepository:
             where.append("event_date <= :period_end")
             params["period_end"] = period_end
         if event_id is not None:
+            if not resolved.allows_event(event_id):
+                return []
             where.append("event_id = :event_id")
             params["event_id"] = event_id
+        elif not event_ids_clause(where, params, resolved):
+            return []
         if venue_id is not None:
+            if not resolved.allows_venue_grain:
+                return []
             where.append("venue_id = :venue_id")
             params["venue_id"] = venue_id
         sql = text(
@@ -350,41 +402,48 @@ class MetricsRepository:
             ORDER BY event_date DESC, revenue_cents DESC
             """
         )
-        result = await self._session.execute(sql, params)
+        result = await self._session.execute(_bind_events(sql, resolved), params)
         rows: list[EventMetricRow] = []
         for row in result.mappings().all():
             sold = int(row["tickets_sold"])
             revenue = int(row["revenue_cents"] or 0)
-            rows.append(
-                EventMetricRow(
-                    account_id=row["account_id"],
-                    event_id=row["event_id"],
-                    venue_id=row["venue_id"],
-                    event_date=row["event_date"],
-                    event_capacity=row["event_capacity"],
-                    venue_aforo=row["venue_aforo"],
-                    tickets_sold=sold,
-                    tickets_redeemed=int(row["tickets_redeemed"]),
-                    revenue_cents=revenue,
-                    sellthrough_pct=_opt_float(row["sellthrough_pct"]),
-                    occupancy_pct=_opt_float(row["occupancy_pct"]),
-                    average_ticket_cents=average_ticket_cents(revenue, sold),
-                )
+            item = EventMetricRow(
+                account_id=row["account_id"],
+                event_id=row["event_id"],
+                venue_id=row["venue_id"],
+                event_date=row["event_date"],
+                event_capacity=row["event_capacity"],
+                venue_aforo=row["venue_aforo"],
+                tickets_sold=sold,
+                tickets_redeemed=int(row["tickets_redeemed"]),
+                revenue_cents=revenue,
+                sellthrough_pct=_opt_float(row["sellthrough_pct"]),
+                occupancy_pct=_opt_float(row["occupancy_pct"]),
+                average_ticket_cents=average_ticket_cents(revenue, sold),
             )
-        return rows
+            if resolved.requires_event_filter:
+                item = redact_venue_fields(item)
+            rows.append(item)
+        return keep_allowed_events(rows, resolved)
 
     async def list_sellthrough_by_tier(
         self,
         account_id: UUID,
         event_id: UUID | None = None,
+        scope: AnalyticsScope | None = None,
     ) -> list[TierSellthrough]:
+        resolved = resolve_scope(account_id, scope)
         if self._settings.uses_seed_facts:
             return []
         where = ["account_id = :account_id"]
         params: dict = {"account_id": account_id}
         if event_id is not None:
+            if not resolved.allows_event(event_id):
+                return []
             where.append("event_id = :event_id")
             params["event_id"] = event_id
+        elif not event_ids_clause(where, params, resolved):
+            return []
         sql = text(
             f"""
             SELECT account_id, event_id, venue_id, tier_id, tier_price_cop,
@@ -394,12 +453,13 @@ class MetricsRepository:
             ORDER BY sellthrough_pct DESC NULLS LAST
             """
         )
-        result = await self._session.execute(sql, params)
-        return [
+        result = await self._session.execute(_bind_events(sql, resolved), params)
+        return keep_allowed_events(
+            [
             TierSellthrough(
                 account_id=row["account_id"],
                 event_id=row["event_id"],
-                venue_id=row["venue_id"],
+                venue_id=None if resolved.requires_event_filter else row["venue_id"],
                 tier_id=row["tier_id"],
                 tier_price_cop=_opt_int(row["tier_price_cop"]),
                 tier_capacity=_opt_int(row["tier_capacity"]),
@@ -408,19 +468,26 @@ class MetricsRepository:
             )
             for row in result.mappings().all()
         ]
+        )
 
     async def list_sales_velocity(
         self,
         account_id: UUID,
         event_id: UUID | None = None,
+        scope: AnalyticsScope | None = None,
     ) -> list[VelocityBucket]:
+        resolved = resolve_scope(account_id, scope)
         if self._settings.uses_seed_facts:
             return []
         where = ["account_id = :account_id"]
         params: dict = {"account_id": account_id}
         if event_id is not None:
+            if not resolved.allows_event(event_id):
+                return []
             where.append("event_id = :event_id")
             params["event_id"] = event_id
+        elif not event_ids_clause(where, params, resolved):
+            return []
         sql = text(
             f"""
             SELECT account_id, event_id, venue_id, event_date, window_key,
@@ -430,12 +497,13 @@ class MetricsRepository:
             ORDER BY event_date DESC, window_key
             """
         )
-        result = await self._session.execute(sql, params)
-        return [
+        result = await self._session.execute(_bind_events(sql, resolved), params)
+        return keep_allowed_events(
+            [
             VelocityBucket(
                 account_id=row["account_id"],
                 event_id=row["event_id"],
-                venue_id=row["venue_id"],
+                venue_id=None if resolved.requires_event_filter else row["venue_id"],
                 event_date=row["event_date"],
                 window_key=str(row["window_key"]),
                 tickets_sold=int(row["tickets_sold"]),
@@ -443,30 +511,61 @@ class MetricsRepository:
             )
             for row in result.mappings().all()
         ]
+        )
 
-    async def list_purchase_hours(self, account_id: UUID) -> list[PurchaseHour]:
+    async def list_purchase_hours(
+        self,
+        account_id: UUID,
+        scope: AnalyticsScope | None = None,
+    ) -> list[PurchaseHour]:
+        resolved = resolve_scope(account_id, scope)
         if self._settings.uses_seed_facts:
             return []
+        where = ["account_id = :account_id"]
+        params: dict = {"account_id": account_id}
+        if not event_ids_clause(where, params, resolved):
+            return []
         sql = text(
-            """
-            SELECT account_id, hour_of_day, tickets_sold, revenue_cents
+            f"""
+            SELECT account_id, event_id, hour_of_day, tickets_sold, revenue_cents
             FROM analytics.v_purchase_hours
-            WHERE account_id = :account_id
+            WHERE {" AND ".join(where)}
             ORDER BY hour_of_day ASC
             """
         )
-        result = await self._session.execute(sql, {"account_id": account_id})
-        return [
-            PurchaseHour(
-                account_id=row["account_id"],
-                hour_of_day=int(row["hour_of_day"]),
-                tickets_sold=int(row["tickets_sold"]),
-                revenue_cents=int(row["revenue_cents"]),
-            )
-            for row in result.mappings().all()
-        ]
+        result = await self._session.execute(_bind_events(sql, resolved), params)
+        buckets: dict[int, PurchaseHour] = {}
+        for row in result.mappings().all():
+            event_id = row["event_id"]
+            if not resolved.allows_event(event_id):
+                continue
+            hour = int(row["hour_of_day"])
+            sold = int(row["tickets_sold"])
+            revenue = int(row["revenue_cents"])
+            prev = buckets.get(hour)
+            if prev is None:
+                buckets[hour] = PurchaseHour(
+                    account_id=row["account_id"],
+                    hour_of_day=hour,
+                    tickets_sold=sold,
+                    revenue_cents=revenue,
+                )
+            else:
+                buckets[hour] = PurchaseHour(
+                    account_id=prev.account_id,
+                    hour_of_day=hour,
+                    tickets_sold=prev.tickets_sold + sold,
+                    revenue_cents=prev.revenue_cents + revenue,
+                )
+        return [buckets[hour] for hour in sorted(buckets)]
 
-    async def list_weekday_activity(self, account_id: UUID) -> list[WeekdaySales]:
+    async def list_weekday_activity(
+        self,
+        account_id: UUID,
+        scope: AnalyticsScope | None = None,
+    ) -> list[WeekdaySales]:
+        if not resolve_scope(account_id, scope).allows_venue_grain:
+            return []
         if self._settings.uses_seed_facts:
             return []
         sql = text(
@@ -491,14 +590,20 @@ class MetricsRepository:
         self,
         account_id: UUID,
         event_id: UUID | None = None,
+        scope: AnalyticsScope | None = None,
     ) -> list[BuyerMixRow]:
+        resolved = resolve_scope(account_id, scope)
         if self._settings.uses_seed_facts:
             return []
         where = ["account_id = :account_id"]
         params: dict = {"account_id": account_id}
         if event_id is not None:
+            if not resolved.allows_event(event_id):
+                return []
             where.append("event_id = :event_id")
             params["event_id"] = event_id
+        elif not event_ids_clause(where, params, resolved):
+            return []
         sql = text(
             f"""
             SELECT account_id, event_id, venue_id, buyer_count, new_buyers, returning_buyers
@@ -507,7 +612,7 @@ class MetricsRepository:
             ORDER BY buyer_count DESC
             """
         )
-        result = await self._session.execute(sql, params)
+        result = await self._session.execute(_bind_events(sql, resolved), params)
         rows: list[BuyerMixRow] = []
         for row in result.mappings().all():
             mix = _privacy_mix(
@@ -515,18 +620,21 @@ class MetricsRepository:
                 int(row["new_buyers"]),
                 int(row["returning_buyers"]),
                 event_id=row["event_id"],
-                venue_id=row["venue_id"],
+                venue_id=None if resolved.requires_event_filter else row["venue_id"],
             )
             if mix is not None:
                 rows.append(mix)
-        return rows
+        return keep_allowed_events(rows, resolved)
 
     async def list_buyer_mix_by_month(
         self,
         account_id: UUID,
         period_start: date | None = None,
         period_end: date | None = None,
+        scope: AnalyticsScope | None = None,
     ) -> list[BuyerMixRow]:
+        if not resolve_scope(account_id, scope).allows_venue_grain:
+            return []
         if self._settings.uses_seed_facts:
             return []
         where = ["account_id = :account_id"]

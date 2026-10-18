@@ -50,7 +50,10 @@ class AttendanceRepository:
         period_end: date,
         venue_id: UUID | None = None,
         gender: str | None = None,
+        actor: str = "venue",
     ) -> list[AttendancePoint]:
+        if actor == "organizer":
+            return []
         seed = self._settings.uses_seed_facts
         params: dict = {"period_start": period_start, "period_end": period_end}
         if account_id is not None:

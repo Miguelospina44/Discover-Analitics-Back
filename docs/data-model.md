@@ -130,3 +130,5 @@ Ver [phase-b-discover.md](phase-b-discover.md) y el [diccionario de métricas](m
 | `v_market_by_price_band` | banda de precio | Igual, fail-closed |
 
 Las vistas de tenant son solo lectura, con `account_id`, sin PII. Las de mercado **no exponen** `account_id` ni `venue_id`.
+
+Un colectivo/organizador no lee esas vistas a grano venue: el repositorio exige `event_id IN (event_ids)` y borra `venue_id` / aforo / ocupación de las filas de evento.

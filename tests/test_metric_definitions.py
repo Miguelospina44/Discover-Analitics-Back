@@ -79,6 +79,8 @@ def test_every_v1_metric_has_executive_fields() -> None:
         assert item.privacy
         assert item.value_line in {"audience", "operations", "sales"}
         assert item.suggested_plan in {"basic", "intermediate", "premium"}
+        assert item.applies_to
+        assert "venue" in item.applies_to or "organizer" in item.applies_to
 
 
 def test_value_lines_and_suggested_plans_cover_the_product() -> None:

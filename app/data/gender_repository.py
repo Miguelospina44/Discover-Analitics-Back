@@ -58,7 +58,10 @@ class GenderRepository:
         period_end: date,
         venue_id: UUID | None = None,
         gender: str | None = None,
+        actor: str = "venue",
     ) -> GenderQueryResult:
+        if actor == "organizer":
+            return GenderQueryResult(points=[], quality="missing")
         params: dict = {"period_start": period_start, "period_end": period_end}
         if account_id is not None:
             params["account_id"] = account_id

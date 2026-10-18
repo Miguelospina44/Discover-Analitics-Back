@@ -1,10 +1,11 @@
 -- Peak purchase hours (0-23) in America/Bogota.
--- Grain: account_id + hour_of_day. Aggregated tickets only. No PII.
--- Source: tickets.purchased_at. COUNT(tickets), never sold_quantity.
+-- Grain: account_id + event_id + hour_of_day so organizers can filter event_ids.
+-- Aggregated tickets only. No PII. COUNT(tickets), never sold_quantity.
 
 CREATE OR REPLACE VIEW analytics.v_purchase_hours AS
 SELECT
     v.account_id,
+    COALESCE(t.event_id, tt.event_id) AS event_id,
     EXTRACT(
         HOUR FROM (t.purchased_at AT TIME ZONE 'America/Bogota')
     )::integer AS hour_of_day,
@@ -21,4 +22,4 @@ WHERE v.account_id IS NOT NULL
   AND COALESCE(LOWER(t.status), 'active') NOT IN (
       'canceled', 'cancelled', 'cancelado'
   )
-GROUP BY v.account_id, 2;
+GROUP BY v.account_id, COALESCE(t.event_id, tt.event_id), 3;

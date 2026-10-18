@@ -12,6 +12,18 @@ Ayuda a tres decisiones:
 
 Los planes (básico / intermedio / premium) **refinan la información**. El nivel que aparece aquí es una **sugerencia**; el dueño del producto puede mover cualquier métrica de plan.
 
+## Quién ve qué: local vs colectivo/organizador
+
+Regla de Miguel: un **colectivo u organizador** ve los datos de **sus eventos** y de **sus clientes en esos eventos** (siempre agregados, sin PII) y las **tendencias generales del ecosistema**. **Nunca** ve la operación del local donde hace el evento. Su corte es **evento puntual**, no una casa que abre todas las semanas.
+
+| Actor | Corte | Qué ve | Qué no ve |
+|---|---|---|---|
+| Local / grupo | `account_id` (operación continua) | Noches, venues, ocupación, weekday, mix de sala | Eventos de terceros |
+| Colectivo / organizador | `event_ids` propios | Ingresos y boletos del evento, etapas, ritmo, horas de compra, público agregado, comparativo entre **sus** eventos, mercado anónimo | El venue anfitrión (aforo, ocupación, noches del local), eventos ajenos |
+| Ambos | celdas de mercado | Promedios de ciudad / tipo / weekday / precio | Identidad de otro cliente |
+
+El repositorio aplica `event_id IN (:event_ids)` para el organizador. Sin `event_ids` no hay filas (fail-closed). Las filas de evento **no incluyen** `venue_id`, aforo ni ocupación.
+
 Las definiciones canónicas están en [`app/domain/metric_definitions.py`](../app/domain/metric_definitions.py).
 
 ## Privacidad (fail-closed)
@@ -57,7 +69,7 @@ Fuente Discover: `venues.aforo`, `events.price_cop` / `capacity`, `ticket_tiers`
 
 Retrato agregado de **quién** compra. Nunca una persona.
 
-### Compradores nuevos vs recurrentes — premium
+### Compradores nuevos vs recurrentes — premium · local y colectivo (por evento)
 
 **Definición.** Qué parte de la audiencia compra por primera vez en el tenant.
 
@@ -71,7 +83,7 @@ Retrato agregado de **quién** compra. Nunca una persona.
 
 **Privacidad.** Se omite la fila si hay menos de 10 compradores distintos.
 
-### Mix de género (agregado) — premium
+### Mix de género (agregado) — premium · solo local (sala continua)
 
 **Definición.** Distribución de sala woman / man / other / undisclosed.
 
@@ -87,43 +99,43 @@ Retrato agregado de **quién** compra. Nunca una persona.
 
 Cómo se comporta la casa: puerta, inventario, timing.
 
-### Asistencia por noche — básico
+### Asistencia por noche — básico · solo local
 
 Check-ins por venue y noche. `COUNT(tickets)` con `redemption_date`. `v_nightly_attendance` / `fact_nightly_attendance`. Sin scanner, no hay señal de puerta.
 
-### Ocupación — intermedio
+### Ocupación — intermedio · solo local (aforo del venue)
 
 Redimidos / `venues.aforo` × 100. `v_event_metrics.occupancy_pct`. Vacía si aforo es NULL o 0.
 
-### Sell-through del evento — intermedio
+### Sell-through del evento — intermedio · local y colectivo
 
 Vendidos / `events.capacity` × 100. No se sustituye capacity por aforo (inventario ≠ sala).
 
-### Sell-through por etapa / tier — premium
+### Sell-through por etapa / tier — premium · local y colectivo
 
 Vendidos del tier / `ticket_tiers.capacity`. **Nunca** `sold_quantity`. `v_sellthrough_by_tier`.
 
-### Ritmo de venta antes del evento — premium
+### Ritmo de venta antes del evento — premium · local y colectivo
 
 Ventanas sobre `event.date − purchased_at`: `early_bird` (>7d), `week_before` (3–7), `last_days` (1–2), `same_day`. `v_sales_velocity`.
 
-### Horas pico de compra — intermedio
+### Horas pico de compra — intermedio · local y colectivo (filtrado por evento)
 
 Hora 0–23 en Bogotá. `v_purchase_hours`.
 
-### Actividad por día de semana — intermedio
+### Actividad por día de semana — intermedio · solo local
 
 Lunes=1 … domingo=7. Vista Discover o hechos seed.
 
-### Comparativo entre eventos — premium
+### Comparativo entre eventos — premium · local y colectivo (solo sus event_ids)
 
 Ranking propio por ingreso, boletos, sell-through u ocupación. Normalizar por aforo.
 
-### Tendencia de mercado por tipo de local — premium
+### Tendencia de mercado por tipo de local — premium · ecosistema (local y colectivo)
 
 Bar vs discoteca vs rooftop, **anónimo**. Ver §4.
 
-### Tendencia de mercado por día de semana — premium
+### Tendencia de mercado por día de semana — premium · ecosistema (local y colectivo)
 
 Si el viernes flojo es de la casa o del mercado. Ver §4.
 
@@ -133,35 +145,35 @@ Si el viernes flojo es de la casa o del mercado. Ver §4.
 
 Monitoreo de plata y volumen; luego comparación en el tiempo y contra el mercado.
 
-### Ingresos — básico
+### Ingresos — básico · local y colectivo (el colectivo solo a grano evento)
 
 `SUM(COALESCE(price_paid_cop, tier.price_cop, event.price_cop, 0))`; vista `* 100` → `revenue_cents`. `v_ticket_sales_by_night`, `v_event_metrics`. Seed: `fact_sales_by_night`. No mezclar `transactions` huérfanas.
 
-### Ticket promedio — básico
+### Ticket promedio — básico · local y colectivo
 
 `revenue_cents / tickets_sold`. Vacío si no hay unidades.
 
-### Boletos vendidos — básico
+### Boletos vendidos — básico · local y colectivo
 
 `COUNT(tickets)` no cancelados. Nunca `sold_quantity`.
 
-### Ventas por noche (órdenes) — básico
+### Ventas por noche (órdenes) — básico · solo local
 
 Puente de orders pagadas. Complementa tickets; no los sustituye. `v_sales_by_night`.
 
-### Comparativo entre periodos — intermedio
+### Comparativo entre periodos — intermedio · solo local (operación continua)
 
 `(actual − anterior) / anterior`. Indefinido si anterior = 0.
 
-### Comparativo entre venues — intermedio
+### Comparativo entre venues — intermedio · solo local
 
 Mismo tenant, varios locales. Un solo venue no tiene contraste.
 
-### Tendencia de mercado por ciudad — premium
+### Tendencia de mercado por ciudad — premium · ecosistema (local y colectivo)
 
 Ticket medio y volumen por local en la ciudad, sin vecinos nombrados. Ver §4.
 
-### Tendencia de mercado por rango de precio — premium
+### Tendencia de mercado por rango de precio — premium · ecosistema (local y colectivo)
 
 Bandas en pesos COP: `free` 0; `entry` ≤40 000; `standard` ≤80 000; `high` ≤150 000; `premium_cover` >150 000. Ver §4.
 
