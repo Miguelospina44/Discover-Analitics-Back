@@ -113,4 +113,4 @@ Hechos: 14 noches (2026-08-01 … 2026-08-14) × 2 venues.
 
 Ver [phase-b-discover.md](phase-b-discover.md). Las vistas viven en `sql/views/` y se aplican sobre la Postgres de Discover; la app no duplica `orders`/`tickets`.
 
-Las 11 vistas `analytics.v_*` y sus columnas permitidas están en [architecture.md](architecture.md#minimizaci%C3%B3n-de-datos) y [`app/domain/discover_views.py`](../app/domain/discover_views.py). No se leen `public.users` (ni `password`/`password_hash`/email/teléfono/`user_id` expuesto), ni detalle de compradores o pagos.
+Las 15 vistas `analytics.v_*` y sus columnas permitidas están en [architecture.md](architecture.md#minimizaci%C3%B3n-de-datos) y [`app/domain/discover_views.py`](../app/domain/discover_views.py). Las `v_market_by_*` no llevan `account_id` (agregado entre clientes). No se leen `public.users` (ni `password`/`password_hash`/email/teléfono/`user_id` expuesto), ni detalle de compradores o pagos.

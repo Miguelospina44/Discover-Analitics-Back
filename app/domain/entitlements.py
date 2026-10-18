@@ -4,6 +4,13 @@ PlanId = Literal["starter", "growth", "pro", "insight"]
 
 PLANS: tuple[PlanId, ...] = ("starter", "growth", "pro", "insight")
 
+# Dictionary on the metrics PR uses basic / intermediate / premium.
+PLAN_ALIASES: dict[str, PlanId] = {
+    "basic": "starter",
+    "intermediate": "growth",
+    "premium": "insight",
+}
+
 # Technical keys. Product copy (Spanish) lives in ADR 0007.
 PLAN_TITLES: dict[str, str] = {
     "starter": "Esencial",
@@ -38,7 +45,7 @@ _PLAN_OWN_ENTITLEMENTS: dict[str, frozenset[str]] = {
             "venues_normalized",
         }
     ),
-    "insight": frozenset({"buyer_mix"}),
+    "insight": frozenset({"buyer_mix", "market_cross_tenant"}),
 }
 
 MEASURE_ENTITLEMENT: dict[str, str] = {
@@ -55,20 +62,31 @@ MEASURE_ENTITLEMENT: dict[str, str] = {
     "venues_normalized": "venues_normalized",
     "buyer_mix_by_event": "buyer_mix",
     "buyer_mix_by_month": "buyer_mix",
+    "market_by_city": "market_cross_tenant",
+    "market_by_venue_type": "market_cross_tenant",
+    "market_by_weekday": "market_cross_tenant",
+    "market_by_price_band": "market_cross_tenant",
 }
 
 
+def canonical_plan(plan: str) -> str | None:
+    if plan in _PLAN_OWN_ENTITLEMENTS:
+        return plan
+    return PLAN_ALIASES.get(plan)
+
+
 def is_known_plan(plan: str) -> bool:
-    return plan in _PLAN_OWN_ENTITLEMENTS
+    return canonical_plan(plan) is not None
 
 
 def entitlements_for_plan(plan: str) -> frozenset[str]:
-    if not is_known_plan(plan):
+    resolved = canonical_plan(plan)
+    if resolved is None:
         return frozenset()
     allowed: set[str] = set()
     for name in PLANS:
         allowed.update(_PLAN_OWN_ENTITLEMENTS[name])
-        if name == plan:
+        if name == resolved:
             break
     return frozenset(allowed)
 

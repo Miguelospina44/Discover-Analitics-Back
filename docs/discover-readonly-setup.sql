@@ -1,7 +1,8 @@
 -- Setup de usuario de solo lectura para Analytics sobre Discover DB
 -- Ejecutar como superusuario en Discover (pary_db / pary_db_test).
 -- Contraseña: ponerla en el entorno, nunca commitear un secreto real.
--- Vistas: las 11 de sql/views (PR de métricas). SELECT solo sobre esas vistas.
+-- Vistas: las 15 de sql/views (PR de métricas). SELECT solo sobre esas vistas.
+-- v_market_by_* no tienen account_id: agregados anónimos entre clientes.
 
 -- 1. Crear rol de solo lectura
 CREATE ROLE analytics_readonly NOINHERIT LOGIN PASSWORD 'CHANGE-ME-RANDOM-SECRET';
@@ -25,6 +26,10 @@ GRANT SELECT ON analytics.v_buyer_mix_by_event TO analytics_readonly;
 GRANT SELECT ON analytics.v_buyer_mix_by_month TO analytics_readonly;
 GRANT SELECT ON analytics.v_activity_by_weekday TO analytics_readonly;
 GRANT SELECT ON analytics.v_venues_normalized TO analytics_readonly;
+GRANT SELECT ON analytics.v_market_by_city TO analytics_readonly;
+GRANT SELECT ON analytics.v_market_by_venue_type TO analytics_readonly;
+GRANT SELECT ON analytics.v_market_by_weekday TO analytics_readonly;
+GRANT SELECT ON analytics.v_market_by_price_band TO analytics_readonly;
 
 -- 5. Verificar
 -- \c pary_db analytics_readonly

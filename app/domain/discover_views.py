@@ -7,10 +7,12 @@ class DiscoverView:
     columns: tuple[str, ...]
     grain: str
     min_plan: str
+    tenant_scoped: bool = True
 
 
-# Allowlist aligned with sql/views on the metrics PR (11 views). Output only.
+# Allowlist aligned with sql/views on the metrics PR (15 views). Output only.
 # Views may join tickets.user_id internally; they must not expose it.
+# tenant_scoped=False: cross-tenant market aggregates — no account/venue/event IDs.
 DISCOVER_VIEWS: tuple[DiscoverView, ...] = (
     DiscoverView(
         name="analytics.v_nightly_attendance",
@@ -110,10 +112,81 @@ DISCOVER_VIEWS: tuple[DiscoverView, ...] = (
     ),
     DiscoverView(
         name="analytics.v_venues_normalized",
-        columns=("account_id", "venue_id", "aforo", "city_raw", "city_normalized"),
+        columns=(
+            "account_id",
+            "venue_id",
+            "aforo",
+            "city_raw",
+            "city_normalized",
+            "venue_type_normalized",
+        ),
         grain="account + venue",
         min_plan="pro",
     ),
+    DiscoverView(
+        name="analytics.v_market_by_city",
+        columns=(
+            "city_normalized",
+            "venues_in_sample",
+            "accounts_in_sample",
+            "avg_tickets_per_venue",
+            "median_tickets_per_venue",
+            "avg_revenue_cents_per_venue",
+            "median_avg_ticket_cents",
+        ),
+        grain="city (cross-tenant, k-anon)",
+        min_plan="insight",
+        tenant_scoped=False,
+    ),
+    DiscoverView(
+        name="analytics.v_market_by_venue_type",
+        columns=(
+            "venue_type_normalized",
+            "venues_in_sample",
+            "accounts_in_sample",
+            "avg_tickets_per_venue",
+            "median_tickets_per_venue",
+            "avg_revenue_cents_per_venue",
+            "median_avg_ticket_cents",
+        ),
+        grain="venue type (cross-tenant, k-anon)",
+        min_plan="insight",
+        tenant_scoped=False,
+    ),
+    DiscoverView(
+        name="analytics.v_market_by_weekday",
+        columns=(
+            "iso_weekday",
+            "venues_in_sample",
+            "accounts_in_sample",
+            "avg_tickets_per_venue",
+            "median_tickets_per_venue",
+            "avg_revenue_cents_per_venue",
+            "median_avg_ticket_cents",
+        ),
+        grain="weekday (cross-tenant, k-anon)",
+        min_plan="insight",
+        tenant_scoped=False,
+    ),
+    DiscoverView(
+        name="analytics.v_market_by_price_band",
+        columns=(
+            "price_band",
+            "venues_in_sample",
+            "accounts_in_sample",
+            "avg_tickets_per_venue",
+            "median_tickets_per_venue",
+            "avg_revenue_cents_per_venue",
+            "median_avg_ticket_cents",
+        ),
+        grain="price band (cross-tenant, k-anon)",
+        min_plan="insight",
+        tenant_scoped=False,
+    ),
+)
+
+TENANT_IDENTIFIER_COLUMNS: frozenset[str] = frozenset(
+    {"account_id", "venue_id", "event_id", "user_id", "tier_id"}
 )
 
 FORBIDDEN_DISCOVER_COLUMNS: frozenset[str] = frozenset(
@@ -135,3 +208,7 @@ FORBIDDEN_DISCOVER_COLUMNS: frozenset[str] = frozenset(
 
 def discover_view_names() -> tuple[str, ...]:
     return tuple(view.name for view in DISCOVER_VIEWS)
+
+
+def market_view_names() -> tuple[str, ...]:
+    return tuple(view.name for view in DISCOVER_VIEWS if not view.tenant_scoped)

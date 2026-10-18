@@ -87,4 +87,22 @@ class Principal:
             event_ids=event_ids,
             event_scoped=event_scoped,
             allow_market_aggregates=self.has_entitlement("market_aggregates"),
+            tenant_filter=True,
+        )
+
+    def resolve_market_scope(self) -> AccessScope:
+        """Cross-tenant anonymous market views (premium / insight).
+
+        No tenant filter and no event assignment required. Output must stay
+        free of account/venue/event IDs and PII.
+        """
+        self.require_entitlement("market_cross_tenant")
+        return AccessScope(
+            account_id=None,
+            account_ids=frozenset(),
+            venue_ids=frozenset(),
+            event_ids=frozenset(),
+            event_scoped=False,
+            allow_market_aggregates=True,
+            tenant_filter=False,
         )

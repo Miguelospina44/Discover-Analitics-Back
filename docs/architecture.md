@@ -52,7 +52,7 @@ La configuración se valida al arrancar (`Settings.validate_startup()`). Fallos 
 
 ## Minimización de datos
 
-Analytics **no** lee tablas `public` de Discover. Solo las 11 vistas agregadas de `sql/views` (allowlist en [`app/domain/discover_views.py`](../app/domain/discover_views.py)).
+Analytics **no** lee tablas `public` de Discover. Solo las 15 vistas agregadas de `sql/views` (allowlist en [`app/domain/discover_views.py`](../app/domain/discover_views.py)).
 
 | Vista | Columnas | Plan mín. |
 |---|---|---|
@@ -64,9 +64,15 @@ Analytics **no** lee tablas `public` de Discover. Solo las 11 vistas agregadas d
 | `v_sales_velocity` | `account_id`, `event_id`, `venue_id`, `event_date`, `window_key`, `tickets_sold`, `revenue_cents` | pro |
 | `v_purchase_hours` | `account_id`, `hour_of_day`, `tickets_sold`, `revenue_cents` | pro |
 | `v_activity_by_weekday` | `account_id`, `iso_weekday`, `tickets_sold`, `revenue_cents` | pro |
-| `v_venues_normalized` | `account_id`, `venue_id`, `aforo`, `city_raw`, `city_normalized` | pro |
+| `v_venues_normalized` | `account_id`, `venue_id`, `aforo`, `city_raw`, `city_normalized`, `venue_type_normalized` | pro |
 | `v_buyer_mix_by_event` | `account_id`, `event_id`, `venue_id`, `buyer_count`, `new_buyers`, `returning_buyers` | insight |
 | `v_buyer_mix_by_month` | `account_id`, `order_month`, `buyer_count`, `new_buyers`, `returning_buyers` | insight |
+| `v_market_by_city` | `city_normalized`, `venues_in_sample`, `accounts_in_sample`, `avg_tickets_per_venue`, `median_tickets_per_venue`, `avg_revenue_cents_per_venue`, `median_avg_ticket_cents` | insight (premium) |
+| `v_market_by_venue_type` | `venue_type_normalized` + mismos agregados | insight (premium) |
+| `v_market_by_weekday` | `iso_weekday` + mismos agregados | insight (premium) |
+| `v_market_by_price_band` | `price_band` + mismos agregados | insight (premium) |
+
+Las `v_market_by_*` **no** tienen `account_id`. La capa de acceso no aplica filtro de tenant (`AccessScope.tenant_filter=False`); solo exige el entitlement `market_cross_tenant`. Nunca se exponen IDs ni PII. Un colectivo puede leerlas con el plan aunque no tenga eventos asignados.
 
 **Prohibido** (ni en vistas, ni en SELECT, ni en logs/respuestas):
 
@@ -75,7 +81,7 @@ Analytics **no** lee tablas `public` de Discover. Solo las 11 vistas agregadas d
 - filas de `tickets` / `orders` / `transactions` con comprador o medio de pago
 - DSN, host, puerto, usuario o password de cualquier base
 
-`GRANT SELECT` solo a esas 11 vistas: [discover-readonly-setup.sql](discover-readonly-setup.sql). ADR de conexión: [0006](adr/0006-secure-discover-connection.md). Acceso y planes: [0007](adr/0007-tenant-hierarchy-and-entitlements.md).
+`GRANT SELECT` solo a esas 15 vistas: [discover-readonly-setup.sql](discover-readonly-setup.sql). ADR de conexión: [0006](adr/0006-secure-discover-connection.md). Acceso y planes: [0007](adr/0007-tenant-hierarchy-and-entitlements.md).
 
 ## Flujo de un corte vertical
 
@@ -98,7 +104,7 @@ Jerarquía (ADR 0007):
 - `group` — varios locales (p. ej. Grupo Belisario) vía la misma cuenta o `child_account_ids`.
 - `collective` / `organizer` — solo `event_ids` propios; sin lista, 403.
 
-Planes (`DEFAULT_PLAN`, hoy `growth` para no romper las rutas vivas): `starter` → `growth` → `pro` → `insight`. Cada uno suma entitlements. Un cliente nunca ve filas particulares de otro; sí puede ver `market_aggregates`.
+Planes (`DEFAULT_PLAN`, hoy `growth` para no romper las rutas vivas): `starter` → `growth` → `pro` → `insight` (alias `premium` del diccionario). Cada uno suma entitlements. Un cliente nunca ve filas particulares de otro. `market_aggregates` (starter) es el gremial grueso; `market_cross_tenant` (insight/premium) son las `v_market_by_*` anónimas, sin filtro de tenant.
 
 - Token JWT propio. El cliente no manda rol, plan ni membresía.
 - `Principal.resolve_access_scope()` + `require_entitlement()`.

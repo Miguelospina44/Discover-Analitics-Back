@@ -6,7 +6,9 @@ import pytest
 from app.domain.discover_views import (
     DISCOVER_VIEWS,
     FORBIDDEN_DISCOVER_COLUMNS,
+    TENANT_IDENTIFIER_COLUMNS,
     discover_view_names,
+    market_view_names,
 )
 from app.domain.entitlements import entitlements_for_plan, plan_allows
 from app.domain.errors import ForbiddenError
@@ -34,7 +36,10 @@ def test_plans_accumulate() -> None:
     assert starter <= growth <= pro <= insight
     assert "buyer_mix" not in pro
     assert "buyer_mix" in insight
+    assert "market_cross_tenant" not in pro
+    assert "market_cross_tenant" in insight
     assert "nightly_attendance" in starter
+    assert entitlements_for_plan("premium") == insight
 
 
 def test_unknown_plan_is_fail_closed() -> None:
@@ -50,6 +55,8 @@ def test_starter_blocks_gender_and_buyer_mix() -> None:
         principal.require_entitlement("attendance_by_gender")
     with pytest.raises(ForbiddenError):
         principal.require_entitlement("buyer_mix_by_event")
+    with pytest.raises(ForbiddenError):
+        principal.require_entitlement("market_by_city")
 
 
 def test_super_admin_bypasses_plan() -> None:
@@ -100,14 +107,44 @@ def test_venue_scope_keeps_account_filter() -> None:
     assert scope.allow_market_aggregates is True
 
 
-def test_eleven_discover_views_have_no_pii_columns() -> None:
+def test_premium_unlocks_anonymous_market_views() -> None:
+    principal = _principal(plan="premium")
+    principal.require_entitlement("market_by_city")
+    principal.require_entitlement("market_by_venue_type")
+    principal.require_entitlement("market_by_weekday")
+    principal.require_entitlement("market_by_price_band")
+    scope = principal.resolve_market_scope()
+    assert scope.tenant_filter is False
+    assert scope.account_id is None
+    assert scope.venue_ids == frozenset()
+    assert scope.event_ids == frozenset()
+
+
+def test_collective_without_events_can_read_market() -> None:
+    principal = _principal(tenant_kind="collective", plan="insight", event_ids=frozenset())
+    scope = principal.resolve_market_scope()
+    assert scope.tenant_filter is False
+    with pytest.raises(ForbiddenError, match="eventos"):
+        principal.resolve_access_scope()
+
+
+def test_fifteen_discover_views_have_no_pii_columns() -> None:
     names = discover_view_names()
-    assert len(names) == 11
+    assert len(names) == 15
     assert names[0] == "analytics.v_nightly_attendance"
-    assert names[-1] == "analytics.v_venues_normalized"
+    assert names[-1] == "analytics.v_market_by_price_band"
+    assert market_view_names() == (
+        "analytics.v_market_by_city",
+        "analytics.v_market_by_venue_type",
+        "analytics.v_market_by_weekday",
+        "analytics.v_market_by_price_band",
+    )
     for view in DISCOVER_VIEWS:
         leaked = FORBIDDEN_DISCOVER_COLUMNS.intersection(view.columns)
         assert leaked == set(), f"{view.name} expone {leaked}"
+        if not view.tenant_scoped:
+            ids = TENANT_IDENTIFIER_COLUMNS.intersection(view.columns)
+            assert ids == set(), f"{view.name} no debe exponer {ids}"
 
 
 def test_readonly_sql_grants_the_allowlist() -> None:

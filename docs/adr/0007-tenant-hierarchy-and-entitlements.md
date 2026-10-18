@@ -33,9 +33,10 @@ Reglas fail-closed:
 - Nadie (salvo `super_admin`) lee filas de **otra** cuenta. Un grupo solo baja a cuentas hijas listadas.
 - Colectivo/organizador **sin** `event_ids` no ve métricas propias (403). No se infiere el venue entero.
 - El cliente **nunca** manda el rol, el plan ni la membresía: salen del token emitido por esta API o de tablas propias (`analytics.*`). El query string `account_id` / `venue_id` / `event_id` solo **restringe** dentro del scope ya resuelto.
-- Tendencias de mercado (`market_aggregates`, hoy `gremial-benchmarks`) no revelan filas de un tenant ajeno ni PII. Un colectivo **sí** puede ver ese agregado aunque no tenga eventos asignados.
+- Tendencias gruesas (`market_aggregates`, hoy `gremial-benchmarks`) no revelan filas de un tenant ajeno ni PII.
+- Mercado anónimo `v_market_by_*` (`market_cross_tenant`, plan **insight** = **premium** del diccionario): **no filtran por tenant**. `AccessScope.tenant_filter=False`, `account_id=None`. La vista no tiene `account_id` / `venue_id` / `event_id`. Un colectivo **sí** puede leerlas con el plan, aunque no tenga eventos.
 
-`AccessScope` es el objeto que los repositorios deben aplicar (WHERE `account_id` / `venue_id` / `event_id`). En este PR se resuelve en dominio; el SQL de métricas sigue filtrando `account_id` como hoy.
+`AccessScope` es el objeto que los repositorios deben aplicar. Si `tenant_filter` es true: WHERE `account_id` / `venue_id` / `event_id`. Si es false (mercado): **ningún** predicado de tenant y **ningún** ID en la respuesta.
 
 ### 2. Roles (qué puede **hacer** en esta app)
 
@@ -59,7 +60,7 @@ Planes técnicos (copy de producto en español). Cada plan **incluye** el anteri
 | `starter` | Esencial | Puerta diaria, ventas diarias, venues del tenant, tendencias de mercado agregadas |
 | `growth` | Crecimiento | + boletos/noche, métricas por evento, sell-through por lista, mix de género agregado |
 | `pro` | Pro | + ritmo de venta, hora de compra, weekday, venues normalizados, comparativos de venues |
-| `insight` | Insight | + mix nuevos/recurrentes (solo cohortes ≥ 10) |
+| `insight` | Insight (premium en el diccionario de métricas) | + mix nuevos/recurrentes (cohortes ≥ 10) y mercado anónimo `v_market_by_*` |
 
 Claves de entitlement (código) y medidas actuales:
 
@@ -77,6 +78,12 @@ Claves de entitlement (código) y medidas actuales:
 | `activity_by_weekday` | `activity_by_weekday` | pro |
 | `venues_normalized` | `venues_normalized` | pro |
 | `buyer_mix_by_*` | `buyer_mix` | insight |
+| `market_by_city` | `market_cross_tenant` | insight (premium) |
+| `market_by_venue_type` | `market_cross_tenant` | insight (premium) |
+| `market_by_weekday` | `market_cross_tenant` | insight (premium) |
+| `market_by_price_band` | `market_cross_tenant` | insight (premium) |
+
+Alias del diccionario PR #10: `basic`→`starter`, `intermediate`→`growth`, `premium`→`insight`.
 
 Plan desconocido → **cero** entitlements. `super_admin` bypasea el plan (ops interno).
 
@@ -86,7 +93,7 @@ Hasta que exista una tabla de suscripción, `DEFAULT_PLAN` (hoy `growth`) es el 
 
 - Analytics no lee `public.users` ni columnas PII. Las vistas `v_buyer_mix_*` pueden usar `user_id` **dentro** del SQL y **no** lo exponen; además omiten la fila si hay menos de 10 compradores distintos.
 - Un cliente no ve compradores, emails, teléfonos ni tickets de otro cliente.
-- El mercado se ve solo como agregado (sin `account_id` ajeno en la respuesta de benchmarks).
+- El mercado grueso (`gremial-benchmarks`) y el mercado anónimo (`v_market_by_*`) son agregados: sin IDs de tenant/venue/evento, sin PII. Las `v_market_by_*` omiten la celda si hay menos de 5 locales, 3 cuentas y 20 boletos.
 
 ### 5. Modelo futuro (escritura en `analytics`, no ahora)
 
