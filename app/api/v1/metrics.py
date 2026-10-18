@@ -49,7 +49,11 @@ async def nightly_attendance(
     venue_id: UUID | None = Query(None),
     gender: str | None = Query(None),
 ) -> MeasureResponse:
-    scope_id = principal.resolve_account_scope(account_id)
+    principal.require_entitlement(NIGHTLY_ATTENDANCE.name)
+    scope = principal.resolve_access_scope(
+        requested_account=account_id, requested_venue=venue_id
+    )
+    scope_id = scope.account_id
     try:
         points = await AttendanceRepository(session, settings).list_for_scope(
             scope_id,
@@ -95,7 +99,11 @@ async def sales_by_night(
     account_id: UUID | None = Query(None),
     venue_id: UUID | None = Query(None),
 ) -> SalesMeasureResponse:
-    scope_id = principal.resolve_account_scope(account_id)
+    principal.require_entitlement(SALES_BY_NIGHT.name)
+    scope = principal.resolve_access_scope(
+        requested_account=account_id, requested_venue=venue_id
+    )
+    scope_id = scope.account_id
     try:
         points = await SalesRepository(session, settings).list_for_scope(
             scope_id,
@@ -142,7 +150,11 @@ async def attendance_by_gender(
     venue_id: UUID | None = Query(None),
     gender: str | None = Query(None),
 ) -> GenderMeasureResponse:
-    scope_id = principal.resolve_account_scope(account_id)
+    principal.require_entitlement(ATTENDANCE_BY_GENDER.name)
+    scope = principal.resolve_access_scope(
+        requested_account=account_id, requested_venue=venue_id
+    )
+    scope_id = scope.account_id
     try:
         result = await GenderRepository(session, settings).list_for_scope(
             scope_id,
@@ -187,7 +199,7 @@ async def gremial_benchmarks(
     period_start: date = Query(...),
     period_end: date = Query(...),
 ) -> GremialBenchmarksResponse:
-    _ = principal
+    principal.require_entitlement("gremial_benchmarks")
     try:
         bench = await BenchmarkRepository(session, settings).gremial(period_start, period_end)
     except ProgrammingError:

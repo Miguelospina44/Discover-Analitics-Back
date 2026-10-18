@@ -5,10 +5,10 @@ Completar antes de activar `DATA_SOURCE=discover` en producción.
 ## 1. Configuración de Base de Datos
 
 - [ ] Usuario `analytics_readonly` creado con contraseña fuerte (≥32 caracteres random)
-- [ ] `GRANT SELECT` únicamente sobre vistas `analytics.v_*` (ver `docs/discover-readonly-setup.sql`)
+- [ ] `GRANT SELECT` únicamente sobre las 11 vistas de `docs/discover-readonly-setup.sql`
 - [ ] **NO** hay permisos sobre `public.users`, `public.venues`, `public.tickets`, etc.
 - [ ] **NO** hay permisos INSERT, UPDATE, DELETE, TRUNCATE
-- [ ] Vistas `analytics.v_nightly_attendance` y `v_sales_by_night` existen y solo exponen agregados permitidos
+- [ ] Las 11 vistas `analytics.v_*` existen y coinciden con `app/domain/discover_views.py` (sin PII)
 - [ ] Vistas **no** exponen PII: sin `users.email`, `users.phone`, `users.password_hash`
 
 ## 2. Configuración de Aplicación

@@ -67,7 +67,7 @@ No hay plugin Cursor de Postgres ER. Usa:
 
 ## Fase B (Discover)
 
-Ver [`docs/phase-b-discover.md`](docs/phase-b-discover.md) y [`docs/adr/0006-secure-discover-connection.md`](docs/adr/0006-secure-discover-connection.md).
+Ver [`docs/phase-b-discover.md`](docs/phase-b-discover.md), [`docs/adr/0006-secure-discover-connection.md`](docs/adr/0006-secure-discover-connection.md) y [`docs/adr/0007-tenant-hierarchy-and-entitlements.md`](docs/adr/0007-tenant-hierarchy-and-entitlements.md).
 
 - `DATABASE_URL` sigue siendo la base **propia** (`discover_analytics`).
 - `DISCOVER_DATABASE_URL` es un DSN **aparte**, de solo lectura, con TLS.

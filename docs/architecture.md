@@ -52,23 +52,30 @@ La configuración se valida al arrancar (`Settings.validate_startup()`). Fallos 
 
 ## Minimización de datos
 
-Analytics **no** lee tablas `public` de Discover. Solo vistas agregadas. Columnas permitidas:
+Analytics **no** lee tablas `public` de Discover. Solo las 11 vistas agregadas de `sql/views` (allowlist en [`app/domain/discover_views.py`](../app/domain/discover_views.py)).
 
-| Vista | Columnas | Grano |
+| Vista | Columnas | Plan mín. |
 |---|---|---|
-| `analytics.v_nightly_attendance` | `account_id`, `venue_id`, `night_date`, `redeemed_tickets` | cuenta por tenant / venue / noche |
-| `analytics.v_sales_by_night` | `account_id`, `venue_id`, `night_date`, `order_count`, `revenue_cents` | suma por tenant / venue / noche |
+| `v_nightly_attendance` | `account_id`, `venue_id`, `night_date`, `redeemed_tickets` | starter |
+| `v_sales_by_night` | `account_id`, `venue_id`, `night_date`, `order_count`, `revenue_cents` | starter |
+| `v_ticket_sales_by_night` | `account_id`, `venue_id`, `night_date`, `tickets_sold`, `revenue_cents` | growth |
+| `v_event_metrics` | `account_id`, `event_id`, `venue_id`, `event_date`, `event_capacity`, `venue_aforo`, `tickets_sold`, `tickets_redeemed`, `revenue_cents`, `sellthrough_pct`, `occupancy_pct` | growth |
+| `v_sellthrough_by_tier` | `account_id`, `event_id`, `venue_id`, `tier_id`, `tier_price_cop`, `tier_capacity`, `tickets_sold`, `sellthrough_pct` | growth |
+| `v_sales_velocity` | `account_id`, `event_id`, `venue_id`, `event_date`, `window_key`, `tickets_sold`, `revenue_cents` | pro |
+| `v_purchase_hours` | `account_id`, `hour_of_day`, `tickets_sold`, `revenue_cents` | pro |
+| `v_activity_by_weekday` | `account_id`, `iso_weekday`, `tickets_sold`, `revenue_cents` | pro |
+| `v_venues_normalized` | `account_id`, `venue_id`, `aforo`, `city_raw`, `city_normalized` | pro |
+| `v_buyer_mix_by_event` | `account_id`, `event_id`, `venue_id`, `buyer_count`, `new_buyers`, `returning_buyers` | insight |
+| `v_buyer_mix_by_month` | `account_id`, `order_month`, `buyer_count`, `new_buyers`, `returning_buyers` | insight |
 
 **Prohibido** (ni en vistas, ni en SELECT, ni en logs/respuestas):
 
 - `users.password`, `users.password_hash`, tokens, JWT
-- `users.email`, `users.phone`, documento, nombre, IP
+- `users.email`, `users.phone`, documento, nombre, IP, `user_id`
 - filas de `tickets` / `orders` / `transactions` con comprador o medio de pago
 - DSN, host, puerto, usuario o password de cualquier base
 
-Toda query de métricas añade `account_id` del JWT (multi-tenant fail-closed). Un admin gremial puede omitir el filtro de cuenta en una fase posterior; no se acepta un `account_id` ajeno mandado por el cliente.
-
-Checklist y rotación: [security-checklist.md](security-checklist.md). Setup del rol: [discover-readonly-setup.sql](discover-readonly-setup.sql). ADR: [adr/0006-secure-discover-connection.md](adr/0006-secure-discover-connection.md).
+`GRANT SELECT` solo a esas 11 vistas: [discover-readonly-setup.sql](discover-readonly-setup.sql). ADR de conexión: [0006](adr/0006-secure-discover-connection.md). Acceso y planes: [0007](adr/0007-tenant-hierarchy-and-entitlements.md).
 
 ## Flujo de un corte vertical
 
@@ -81,12 +88,20 @@ tickets.redemption_date
   → (front) KPI + hallazgo opcional
 ```
 
-## Auth y tenant
+## Auth, tenant y planes
 
-Roles de **esta** app (no los de Pary): `admin`, `consultant`, `viewer`.
+Roles de **esta** app (no los de Pary): `admin`, `consultant`, `viewer`, `super_admin` (staff). El rol no desbloquea métricas de un plan superior.
 
-- Token JWT propio. No se confía en un rol mandado por el cliente.
-- Toda consulta de negocio filtra `account_id` del token (o lista explícita para un admin gremial, fase posterior).
+Jerarquía (ADR 0007):
+
+- `venue` — un local / una cuenta.
+- `group` — varios locales (p. ej. Grupo Belisario) vía la misma cuenta o `child_account_ids`.
+- `collective` / `organizer` — solo `event_ids` propios; sin lista, 403.
+
+Planes (`DEFAULT_PLAN`, hoy `growth` para no romper las rutas vivas): `starter` → `growth` → `pro` → `insight`. Cada uno suma entitlements. Un cliente nunca ve filas particulares de otro; sí puede ver `market_aggregates`.
+
+- Token JWT propio. El cliente no manda rol, plan ni membresía.
+- `Principal.resolve_access_scope()` + `require_entitlement()`.
 - `APP_ENV=production` ignora el usuario bootstrap.
 
 ## Lo que no vive aquí

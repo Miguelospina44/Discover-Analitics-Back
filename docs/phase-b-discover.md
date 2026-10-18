@@ -12,8 +12,9 @@ Estado: **conexión de solo lectura cableada**; smoke contra un Discover real qu
 | Sesión de métricas | `MetricsDbSession` en [`app/api/deps.py`](../app/api/deps.py) |
 | Attendance seed vs vista | [`app/data/attendance_repository.py`](../app/data/attendance_repository.py) |
 | Sales seed vs vista | [`app/data/sales_repository.py`](../app/data/sales_repository.py) |
-| Vista asistencia | [`sql/views/001_v_nightly_attendance.sql`](../sql/views/001_v_nightly_attendance.sql) |
-| Vista ventas | [`sql/views/002_v_sales_by_night.sql`](../sql/views/002_v_sales_by_night.sql) |
+| Vistas 001–011 | [`sql/views/`](../sql/views/) (carril de métricas; allowlist en este repo) |
+| Allowlist + GRANTs | [`app/domain/discover_views.py`](../app/domain/discover_views.py), [discover-readonly-setup.sql](discover-readonly-setup.sql) |
+| Tenant / planes | [adr/0007-tenant-hierarchy-and-entitlements.md](adr/0007-tenant-hierarchy-and-entitlements.md) |
 | Usuario SELECT-only | [`docs/discover-readonly-setup.sql`](discover-readonly-setup.sql) |
 | Columnas permitidas | [architecture.md](architecture.md#minimizaci%C3%B3n-de-datos) |
 | ADR | [adr/0006-secure-discover-connection.md](adr/0006-secure-discover-connection.md) |
@@ -21,7 +22,7 @@ Estado: **conexión de solo lectura cableada**; smoke contra un Discover real qu
 ## Pasos para activar (cuando toque)
 
 1. En la Postgres de Discover (nunca desde este repo con credenciales reales):
-   - Aplicar `sql/views/001_*.sql` y `002_*.sql` (schema `analytics` de vistas).
+   - Aplicar `sql/views/001_*.sql` … `011_*.sql` (schema `analytics` de vistas).
    - Crear rol `analytics_readonly` con `GRANT SELECT` solo sobre esas vistas. Ver `docs/discover-readonly-setup.sql`.
 2. En la Postgres **propia** de Analytics (`discover_analytics`):
    - `alembic upgrade head` (auth, consultoría, facts seed).

@@ -13,7 +13,9 @@ No hay un plugin MCP de Cursor que introspeccione Postgres y dibuje el ER solo.
 
 ## Tenant
 
-`account_id` (UUID) es el tenant. En Fase A es un UUID seed fijo (`a1111111-1111-4111-8111-111111111111`). En Fase B se alinea con `accounts.id` / `venues.account_id` de Discover. **Toda** query de negocio filtra por `account_id` del JWT.
+`account_id` (UUID) es el tenant raíz. En Fase A es un UUID seed fijo (`a1111111-1111-4111-8111-111111111111`). En Fase B se alinea con `accounts.id` / `venues.account_id` de Discover.
+
+Jerarquía (ADR 0007): **grupo → locales → eventos**. Un colectivo/organizador no hereda el venue: solo sus `event_ids`. **Toda** query de negocio aplica `AccessScope` (hoy el filtro SQL sigue siendo `account_id`; `event_ids`/`venue_ids` quedan listos en dominio). El plan de pago recorta vistas, no el tenant.
 
 ## Capas
 
@@ -111,11 +113,4 @@ Hechos: 14 noches (2026-08-01 … 2026-08-14) × 2 venues.
 
 Ver [phase-b-discover.md](phase-b-discover.md). Las vistas viven en `sql/views/` y se aplican sobre la Postgres de Discover; la app no duplica `orders`/`tickets`.
 
-Columnas que Analytics puede leer (agregados, sin PII):
-
-| Objeto | Columnas permitidas |
-|---|---|
-| `analytics.v_nightly_attendance` | `account_id`, `venue_id`, `night_date`, `redeemed_tickets` |
-| `analytics.v_sales_by_night` | `account_id`, `venue_id`, `night_date`, `order_count`, `revenue_cents` |
-
-No se leen `public.users` (ni `password`/`password_hash`/email/teléfono), ni detalle de compradores o pagos. Ver [architecture.md](architecture.md#minimizaci%C3%B3n-de-datos).
+Las 11 vistas `analytics.v_*` y sus columnas permitidas están en [architecture.md](architecture.md#minimizaci%C3%B3n-de-datos) y [`app/domain/discover_views.py`](../app/domain/discover_views.py). No se leen `public.users` (ni `password`/`password_hash`/email/teléfono/`user_id` expuesto), ni detalle de compradores o pagos.

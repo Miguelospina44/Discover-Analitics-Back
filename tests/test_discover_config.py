@@ -125,3 +125,17 @@ def test_discover_pool_defaults() -> None:
     assert settings.discover_max_overflow == 2
     assert settings.discover_pool_timeout == 10
     assert settings.discover_require_ssl is True
+    assert settings.default_plan == "growth"
+    assert settings.default_tenant_kind == "venue"
+
+
+def test_invalid_default_plan_fails_startup() -> None:
+    settings = _settings(default_plan="unlimited")
+    errors = settings.validate_startup()
+    assert any("DEFAULT_PLAN" in err for err in errors)
+
+
+def test_invalid_default_tenant_kind_fails_startup() -> None:
+    settings = _settings(default_tenant_kind="franchise")
+    errors = settings.validate_startup()
+    assert any("DEFAULT_TENANT_KIND" in err for err in errors)

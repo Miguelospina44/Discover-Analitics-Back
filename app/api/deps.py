@@ -50,6 +50,8 @@ async def get_principal(
         account_id=UUID(payload["account_id"]),
         role=str(payload["role"]),
         email=str(payload.get("email", "")),
+        plan=settings.default_plan,
+        tenant_kind=settings.default_tenant_kind,
     )
 
 

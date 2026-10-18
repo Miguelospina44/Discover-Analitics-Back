@@ -3,6 +3,9 @@ from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.domain.entitlements import is_known_plan
+from app.domain.tenant import is_known_tenant_kind
+
 DataSource = Literal["seed", "discover"]
 
 _DEV_JWT_SECRET = "insecure-dev-secret"
@@ -42,6 +45,8 @@ class Settings(BaseSettings):
 
     query_timeout_seconds: int = 15
     cache_ttl_seconds: int = 60
+    default_plan: str = "growth"
+    default_tenant_kind: str = "venue"
 
     @property
     def cors_origin_list(self) -> list[str]:
@@ -94,6 +99,10 @@ class Settings(BaseSettings):
 
     def validate_startup(self) -> list[str]:
         errors = self.validate_discover_config()
+        if not is_known_plan(self.default_plan):
+            errors.append("DEFAULT_PLAN inválido")
+        if not is_known_tenant_kind(self.default_tenant_kind):
+            errors.append("DEFAULT_TENANT_KIND inválido")
         if self.is_production:
             if self.jwt_secret == _DEV_JWT_SECRET:
                 errors.append("JWT_SECRET de desarrollo no permitido en production")
