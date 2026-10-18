@@ -109,4 +109,20 @@ Hechos: 14 noches (2026-08-01 … 2026-08-14) × 2 venues.
 
 ## Fase B (derivado Discover)
 
-Ver [phase-b-discover.md](phase-b-discover.md). Las vistas viven en `sql/views/` y se aplican sobre la Postgres de Discover; la app no duplica `orders`/`tickets`.
+Ver [phase-b-discover.md](phase-b-discover.md) y el [diccionario de métricas](metrics-dictionary.md). Las vistas viven en `sql/views/` y se aplican sobre la Postgres de Discover; la app no duplica `orders`/`tickets`.
+
+| Vista | Grano | Para qué |
+|---|---|---|
+| `v_nightly_attendance` | venue + noche | Check-ins |
+| `v_sales_by_night` | venue + noche | Órdenes pagadas (puente) |
+| `v_ticket_sales_by_night` | venue + noche | Boletos e ingreso (`price_paid_cop`) |
+| `v_event_metrics` | evento | Ingreso, ocupación, sell-through |
+| `v_sellthrough_by_tier` | tier | Etapas de precio; `COUNT` no `sold_quantity` |
+| `v_sales_velocity` | evento + ventana | Ritmo pre-evento |
+| `v_purchase_hours` | account + hora | Horas pico |
+| `v_activity_by_weekday` | account + ISODOW | Mix semanal |
+| `v_buyer_mix_by_event` | evento | Nuevos vs recurrentes, n≥10 |
+| `v_buyer_mix_by_month` | mes | Igual, n≥10 |
+| `v_venues_normalized` | venue | Ciudad limpia + aforo |
+
+Todas son solo lectura, con `account_id`, sin PII.

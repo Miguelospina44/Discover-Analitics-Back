@@ -71,34 +71,36 @@ Facts (grano):
 |---|---|---|
 | fact_order | 1 orden | orders + tx agregada |
 | fact_order_line | 1 línea | order-lines |
-| fact_ticket | 1 ticket | tickets |
+| fact_ticket | 1 ticket | tickets (`price_paid_cop`, `purchased_at`, `tier`) |
 | fact_transaction | 1 intento pago | transactions |
 | fact_tracking_event | 1 evento funnel | tracking_events |
 | fact_session | 1 sesión | tracking_sessions |
 
-Dims: date, user (anon), account, venue, venue_type, event, ticket_batch, promoter, utm_campaign, payment_method, order_status.
+Dims: date, user (anon), account, venue, venue_type, event, ticket_tier, promoter, utm_campaign, payment_method, order_status.
 
-En Fase A aislada ya existen `fact_nightly_attendance` / `fact_sales_by_night` seed; en Fase B las vistas Discover deben alinearse a este grano.
+En Fase A aislada ya existen `fact_nightly_attendance` / `fact_sales_by_night` seed. En Fase B las vistas `analytics.v_*` publican **agregados** de ese grano (nunca el ticket o el user crudo). Ver [metrics-dictionary.md](metrics-dictionary.md).
+
+El inventario de esta página es `pary_db_test` (Pary). El modelo Discover de producto (`ticket_tiers`, `venues.aforo`, `events.capacity` / `price_cop`) es la fuente de las vistas `003`+. No mezclar `ticket_batches.sold_quantity` con cupo de tier.
 
 ## 4. Métricas v1
 
+Definiciones, fórmulas y vistas: [metrics-dictionary.md](metrics-dictionary.md). Catálogo en código: `app/domain/metric_definitions.py`.
+
 ### YA desde Postgres (con salvedades DEV)
 
-- Funnel PAGE_VIEW → EVENT_VIEW → CLICK_BUY → PURCHASE_COMPLETED (mejor dataset hoy).
-- Sesiones / día; % sesiones con UTM (bajo).
-- Catálogo: venues, events activos, capacidad, tipos, ciudades (normalizadas).
-- Tickets emitidos / check-in (`redemption_date` o status inactive).
-- Intentos de pago por status y método (PSE/CARD/FREE) desde `transactions`.
-- GMV **aproximado** desde tx APPROVED (orphan-aware) o desde orders COMPLETED/APPROVED cuando existan.
-- Ticket promedio, mix product_type (hoy solo `event`).
-- Códigos promo: catálogo + usages (n=1, poco).
+- Ingresos y ticket promedio (tickets `price_paid_cop`; puente orders pagadas).
+- Boletos vendidos vs aforo / capacity (ocupación y sell-through por evento y por tier).
+- Ritmo de venta antes del evento (`purchased_at` vs `events.date`).
+- Comparativos evento / periodo / venue.
+- Nuevos vs recurrentes, solo agregado y n≥10.
+- Horas pico de compra y mix por weekday.
+- Tickets emitidos / check-in (`redemption_date`).
+- Ciudades de venue normalizadas.
+- Funnel PAGE_VIEW → PURCHASE_COMPLETED y UTM: señal densa en este DEV, **no** es métrica v1 de dueño (falta tenant limpio y atribución). Queda en v2 / laboratorio.
 
-### Requieren fuente externa (Excel / Meta / IG)
+### Requieren fuente externa (Excel / Meta / IG) — v2
 
-- Proyecciones y % cumplimiento.
-- Interacciones pauta / IG.
-- Gastos, MCI, tareas.
-- ROI ads de verdad (solo hay UTM parcial).
+Lista priorizada en el diccionario: ROI ads, forecast vs real, refunds, LTV, margen, NPS, redes, predicción, geo de compradores.
 
 ## 5. Queries ejemplo
 
