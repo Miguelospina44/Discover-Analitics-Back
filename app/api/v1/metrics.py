@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Query
 from sqlalchemy.exc import ProgrammingError
 
-from app.api.deps import AuthedDbSession, CurrentPrincipal, CurrentSettings
+from app.api.deps import CurrentPrincipal, CurrentSettings, MetricsDbSession
 from app.api.v1.schemas import (
     AttendancePointOut,
     GenderMeasureResponse,
@@ -40,7 +40,7 @@ def _gender_param(gender: str | None) -> str | None:
 
 @router.get("/nightly-attendance", response_model=MeasureResponse)
 async def nightly_attendance(
-    session: AuthedDbSession,
+    session: MetricsDbSession,
     principal: CurrentPrincipal,
     settings: CurrentSettings,
     period_start: date = Query(...),
@@ -87,7 +87,7 @@ async def nightly_attendance(
 
 @router.get("/sales-by-night", response_model=SalesMeasureResponse)
 async def sales_by_night(
-    session: AuthedDbSession,
+    session: MetricsDbSession,
     principal: CurrentPrincipal,
     settings: CurrentSettings,
     period_start: date = Query(...),
@@ -133,7 +133,7 @@ async def sales_by_night(
 
 @router.get("/attendance-by-gender", response_model=GenderMeasureResponse)
 async def attendance_by_gender(
-    session: AuthedDbSession,
+    session: MetricsDbSession,
     principal: CurrentPrincipal,
     settings: CurrentSettings,
     period_start: date = Query(...),
@@ -181,7 +181,7 @@ async def attendance_by_gender(
 
 @router.get("/gremial-benchmarks", response_model=GremialBenchmarksResponse)
 async def gremial_benchmarks(
-    session: AuthedDbSession,
+    session: MetricsDbSession,
     principal: CurrentPrincipal,
     settings: CurrentSettings,
     period_start: date = Query(...),

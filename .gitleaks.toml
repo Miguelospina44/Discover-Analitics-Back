@@ -1,0 +1,30 @@
+# Gitleaks for Discover Analytics.
+# Placeholders and local defaults are allowlisted. Real secrets must not land in git.
+# Paths are regexes matched against the full file path.
+
+title = "Discover Analytics Secret Scanner"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholders, local defaults, docs, tests and caches"
+paths = [
+    '''\.env\.example$''',
+    '''(^|/)docs/''',
+    '''(^|/)tests/''',
+    '''\.gitleaks\.toml$''',
+    '''__pycache__''',
+    '''\.pyc$''',
+]
+regexes = [
+    '''CHANGE-ME''',
+    '''change-me''',
+    '''replace-with-a-long-random-secret''',
+    '''insecure-dev-secret''',
+    '''a-long-random-production-secret''',
+    '''postgres:postgres''',
+    '''postgres:change-me''',
+    '''user:pass@''',
+    '''analytics_readonly:SECRET''',
+]

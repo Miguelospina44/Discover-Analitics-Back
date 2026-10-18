@@ -24,7 +24,7 @@ No hay un plugin MCP de Cursor que introspeccione Postgres y dibuje el ER solo.
 | Hechos seed | `dim_venues`, `fact_nightly_attendance`, `fact_sales_by_night` | Seed / migración | Métricas sin Discover |
 | Derivado Discover | `v_nightly_attendance`, `v_sales_by_night` | Solo lectura | Fase B sobre `public` |
 
-`DATA_SOURCE=seed` → repos leen facts. `DATA_SOURCE=discover` → repos leen vistas.
+`DATA_SOURCE=seed` → repos leen facts en la base propia. `DATA_SOURCE=discover` → repos leen vistas por un pool **aparte** (`DISCOVER_DATABASE_URL`), sin escribir en Discover.
 
 ## ER Fase A (`discover_analytics`)
 
@@ -110,3 +110,12 @@ Hechos: 14 noches (2026-08-01 … 2026-08-14) × 2 venues.
 ## Fase B (derivado Discover)
 
 Ver [phase-b-discover.md](phase-b-discover.md). Las vistas viven en `sql/views/` y se aplican sobre la Postgres de Discover; la app no duplica `orders`/`tickets`.
+
+Columnas que Analytics puede leer (agregados, sin PII):
+
+| Objeto | Columnas permitidas |
+|---|---|
+| `analytics.v_nightly_attendance` | `account_id`, `venue_id`, `night_date`, `redeemed_tickets` |
+| `analytics.v_sales_by_night` | `account_id`, `venue_id`, `night_date`, `order_count`, `revenue_cents` |
+
+No se leen `public.users` (ni `password`/`password_hash`/email/teléfono), ni detalle de compradores o pagos. Ver [architecture.md](architecture.md#minimizaci%C3%B3n-de-datos).

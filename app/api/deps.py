@@ -24,6 +24,16 @@ async def get_db(request: Request) -> AsyncIterator[AsyncSession]:
         yield session
 
 
+async def get_discover_db(request: Request) -> AsyncIterator[AsyncSession]:
+    discover_factory = getattr(request.app.state, "discover_session_factory", None)
+    if discover_factory is None:
+        async for session in get_db(request):
+            yield session
+    else:
+        async with discover_factory() as session:
+            yield session
+
+
 def settings_dep() -> Settings:
     return get_settings()
 
@@ -51,7 +61,21 @@ async def get_db_for_user(
         yield session
 
 
+async def get_metrics_db(
+    request: Request,
+    principal: Principal = Depends(get_principal),
+    settings: Settings = Depends(settings_dep),
+) -> AsyncIterator[AsyncSession]:
+    if settings.uses_discover_source:
+        async for session in get_discover_db(request):
+            yield session
+    else:
+        async for session in get_db(request):
+            yield session
+
+
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 AuthedDbSession = Annotated[AsyncSession, Depends(get_db_for_user)]
+MetricsDbSession = Annotated[AsyncSession, Depends(get_metrics_db)]
 CurrentPrincipal = Annotated[Principal, Depends(get_principal)]
 CurrentSettings = Annotated[Settings, Depends(settings_dep)]
