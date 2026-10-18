@@ -8,6 +8,7 @@ class DiscoverView:
     grain: str
     min_plan: str
     tenant_scoped: bool = True
+    access_grain: str = "venue"
 
 
 # Allowlist aligned with sql/views on the metrics PR (15 views). Output only.
@@ -49,6 +50,7 @@ DISCOVER_VIEWS: tuple[DiscoverView, ...] = (
         ),
         grain="account + event",
         min_plan="growth",
+        access_grain="event",
     ),
     DiscoverView(
         name="analytics.v_sellthrough_by_tier",
@@ -64,6 +66,7 @@ DISCOVER_VIEWS: tuple[DiscoverView, ...] = (
         ),
         grain="account + event + tier",
         min_plan="growth",
+        access_grain="event",
     ),
     DiscoverView(
         name="analytics.v_sales_velocity",
@@ -78,6 +81,7 @@ DISCOVER_VIEWS: tuple[DiscoverView, ...] = (
         ),
         grain="account + event + window",
         min_plan="pro",
+        access_grain="event",
     ),
     DiscoverView(
         name="analytics.v_purchase_hours",
@@ -97,6 +101,7 @@ DISCOVER_VIEWS: tuple[DiscoverView, ...] = (
         ),
         grain="account + event (cohort >= 10)",
         min_plan="insight",
+        access_grain="event",
     ),
     DiscoverView(
         name="analytics.v_buyer_mix_by_month",
@@ -137,6 +142,7 @@ DISCOVER_VIEWS: tuple[DiscoverView, ...] = (
         grain="city (cross-tenant, k-anon)",
         min_plan="insight",
         tenant_scoped=False,
+        access_grain="market",
     ),
     DiscoverView(
         name="analytics.v_market_by_venue_type",
@@ -152,6 +158,7 @@ DISCOVER_VIEWS: tuple[DiscoverView, ...] = (
         grain="venue type (cross-tenant, k-anon)",
         min_plan="insight",
         tenant_scoped=False,
+        access_grain="market",
     ),
     DiscoverView(
         name="analytics.v_market_by_weekday",
@@ -167,6 +174,7 @@ DISCOVER_VIEWS: tuple[DiscoverView, ...] = (
         grain="weekday (cross-tenant, k-anon)",
         min_plan="insight",
         tenant_scoped=False,
+        access_grain="market",
     ),
     DiscoverView(
         name="analytics.v_market_by_price_band",
@@ -182,6 +190,7 @@ DISCOVER_VIEWS: tuple[DiscoverView, ...] = (
         grain="price band (cross-tenant, k-anon)",
         min_plan="insight",
         tenant_scoped=False,
+        access_grain="market",
     ),
 )
 

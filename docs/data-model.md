@@ -15,7 +15,7 @@ No hay un plugin MCP de Cursor que introspeccione Postgres y dibuje el ER solo.
 
 `account_id` (UUID) es el tenant raíz. En Fase A es un UUID seed fijo (`a1111111-1111-4111-8111-111111111111`). En Fase B se alinea con `accounts.id` / `venues.account_id` de Discover.
 
-Jerarquía (ADR 0007): **grupo → locales → eventos**. Un colectivo/organizador no hereda el venue: solo sus `event_ids`. **Toda** query de negocio aplica `AccessScope` (hoy el filtro SQL sigue siendo `account_id`; `event_ids`/`venue_ids` quedan listos en dominio). El plan de pago recorta vistas, no el tenant.
+Jerarquía (ADR 0007): **grupo → locales → eventos**. Un colectivo/organizador no hereda el venue: solo vistas por evento filtradas por `event_ids` (más mercado según plan). **Toda** query de negocio aplica `AccessScope` (hoy el filtro SQL de rutas vivas sigue siendo `account_id`; `event_ids` quedan listos en dominio). El plan de pago recorta vistas; el `tenant_kind` recorta el grano.
 
 ## Capas
 

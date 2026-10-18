@@ -86,16 +86,60 @@ def test_collective_without_events_is_forbidden() -> None:
     principal = _principal(tenant_kind="collective", event_ids=frozenset())
     with pytest.raises(ForbiddenError, match="eventos"):
         principal.resolve_access_scope()
+    with pytest.raises(ForbiddenError, match="local"):
+        principal.require_entitlement("nightly_attendance")
+    with pytest.raises(ForbiddenError, match="local"):
+        principal.resolve_access_scope(measure="sales_by_night")
 
 
 def test_collective_cannot_see_other_event() -> None:
     own = uuid4()
-    principal = _principal(tenant_kind="collective", event_ids=frozenset({own}))
-    scope = principal.resolve_access_scope(requested_event=own)
+    principal = _principal(tenant_kind="collective", plan="insight", event_ids=frozenset({own}))
+    scope = principal.resolve_access_scope(requested_event=own, measure="event_metrics")
     assert scope.event_scoped is True
     assert scope.event_ids == frozenset({own})
+    assert scope.venue_ids == frozenset()
     with pytest.raises(ForbiddenError):
         principal.resolve_access_scope(requested_event=uuid4())
+
+
+def test_collective_never_sees_venue_grain_even_with_events() -> None:
+    own = uuid4()
+    principal = _principal(
+        tenant_kind="collective",
+        plan="insight",
+        event_ids=frozenset({own}),
+        venue_ids=frozenset({uuid4()}),
+    )
+    for measure in (
+        "nightly_attendance",
+        "sales_by_night",
+        "ticket_sales_by_night",
+        "attendance_by_gender",
+        "venues_normalized",
+        "purchase_hours",
+        "activity_by_weekday",
+        "buyer_mix_by_month",
+    ):
+        with pytest.raises(ForbiddenError, match="local"):
+            principal.require_entitlement(measure)
+    with pytest.raises(ForbiddenError, match="local"):
+        principal.resolve_access_scope(requested_venue=uuid4(), measure="event_metrics")
+    principal.require_entitlement("event_metrics")
+    principal.require_entitlement("sellthrough_by_tier")
+    principal.require_entitlement("sales_velocity")
+    principal.require_entitlement("buyer_mix_by_event")
+    principal.require_entitlement("gremial_benchmarks")
+    principal.require_entitlement("market_by_city")
+
+
+def test_organizer_matches_collective_rules() -> None:
+    principal = _principal(tenant_kind="organizer", plan="growth", event_ids=frozenset())
+    with pytest.raises(ForbiddenError, match="local"):
+        principal.require_entitlement("nightly_attendance")
+    with pytest.raises(ForbiddenError, match="eventos"):
+        principal.resolve_access_scope(measure="event_metrics")
+    principal.require_entitlement("gremial_benchmarks")
 
 
 def test_venue_scope_keeps_account_filter() -> None:

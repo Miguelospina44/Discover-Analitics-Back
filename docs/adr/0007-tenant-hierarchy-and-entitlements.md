@@ -18,23 +18,30 @@ grupo (account)
         └── eventos / noches
 
 colectivo u organizador (account)
-  └── solo SUS eventos  (no el venue completo ni eventos ajenos)
+  └── solo SUS eventos (fechas particulares; nunca el local anfitrión)
 ```
 
 | `tenant_kind` | Alcance de filas propias | Ejemplo |
 |---|---|---|
 | `venue` | Un `account_id` y todos sus venues/eventos | Un bar independiente |
 | `group` | La cuenta padre y, si existen, `child_account_ids` o `venue_ids` | Grupo Belisario |
-| `collective` | Fail-closed a `event_ids` asignados | Colectivo que produce fechas |
-| `organizer` | Igual que colectivo: solo sus eventos | Promotor / organizador |
+| `collective` | Solo `event_ids` propios + mercado según plan | Colectivo que produce fechas |
+| `organizer` | Igual que colectivo | Promotor / organizador |
+
+Regla confirmada de producto (colectivo / organizador):
+
+- Ven **sus eventos** (y sus compradores **en agregado** de esos eventos).
+- Ven **tendencias del ecosistema** (`market_aggregates` y `v_market_by_*`) si el plan lo permite.
+- **Nunca** ven datos del local donde hacen la fecha (asistencia/ventas por noche del venue, dim de venues, mix mensual del local, horas/weekday operativos).
+- Sin `event_ids` no ven nada propio (403). No se infiere el venue. El mercado sigue accesible según plan.
+- `resolve_access_scope` deja `venue_ids` vacío, exige `event_ids` y rechaza `requested_venue`.
 
 Reglas fail-closed:
 
 - Nadie (salvo `super_admin`) lee filas de **otra** cuenta. Un grupo solo baja a cuentas hijas listadas.
-- Colectivo/organizador **sin** `event_ids` no ve métricas propias (403). No se infiere el venue entero.
 - El cliente **nunca** manda el rol, el plan ni la membresía: salen del token emitido por esta API o de tablas propias (`analytics.*`). El query string `account_id` / `venue_id` / `event_id` solo **restringe** dentro del scope ya resuelto.
 - Tendencias gruesas (`market_aggregates`, hoy `gremial-benchmarks`) no revelan filas de un tenant ajeno ni PII.
-- Mercado anónimo `v_market_by_*` (`market_cross_tenant`, plan **insight** = **premium** del diccionario): **no filtran por tenant**. `AccessScope.tenant_filter=False`, `account_id=None`. La vista no tiene `account_id` / `venue_id` / `event_id`. Un colectivo **sí** puede leerlas con el plan, aunque no tenga eventos.
+- Mercado anónimo `v_market_by_*` (`market_cross_tenant`, plan **insight** = **premium** del diccionario): **no filtran por tenant**. `AccessScope.tenant_filter=False`, `account_id=None`. La vista no tiene `account_id` / `venue_id` / `event_id`.
 
 `AccessScope` es el objeto que los repositorios deben aplicar. Si `tenant_filter` es true: WHERE `account_id` / `venue_id` / `event_id`. Si es false (mercado): **ningún** predicado de tenant y **ningún** ID en la respuesta.
 
@@ -64,24 +71,21 @@ Planes técnicos (copy de producto en español). Cada plan **incluye** el anteri
 
 Claves de entitlement (código) y medidas actuales:
 
-| Medida / vista | Entitlement | Plan mínimo |
-|---|---|---|
-| `nightly_attendance` | `nightly_attendance` | starter |
-| `sales_by_night` | `sales_by_night` | starter |
-| `gremial_benchmarks` | `market_aggregates` | starter |
-| `attendance_by_gender` | `attendance_by_gender` | growth |
-| `ticket_sales_by_night` | `ticket_sales_by_night` | growth |
-| `event_metrics` | `event_metrics` | growth |
-| `sellthrough_by_tier` | `sellthrough_by_tier` | growth |
-| `sales_velocity` | `sales_velocity` | pro |
-| `purchase_hours` | `purchase_hours` | pro |
-| `activity_by_weekday` | `activity_by_weekday` | pro |
-| `venues_normalized` | `venues_normalized` | pro |
-| `buyer_mix_by_*` | `buyer_mix` | insight |
-| `market_by_city` | `market_cross_tenant` | insight (premium) |
-| `market_by_venue_type` | `market_cross_tenant` | insight (premium) |
-| `market_by_weekday` | `market_cross_tenant` | insight (premium) |
-| `market_by_price_band` | `market_cross_tenant` | insight (premium) |
+| Medida / vista | Entitlement | Plan mín. | Grano de acceso |
+|---|---|---|---|
+| `nightly_attendance` | `nightly_attendance` | starter | venue (prohibido a colectivo) |
+| `sales_by_night` | `sales_by_night` | starter | venue |
+| `ticket_sales_by_night` | `ticket_sales_by_night` | growth | venue |
+| `attendance_by_gender` | `attendance_by_gender` | growth | venue |
+| `venues_normalized` | `venues_normalized` | pro | venue |
+| `purchase_hours` / `activity_by_weekday` | esos | pro | venue |
+| `buyer_mix_by_month` | `buyer_mix` | insight | venue |
+| `event_metrics` | `event_metrics` | growth | event (filtra `event_ids`) |
+| `sellthrough_by_tier` | `sellthrough_by_tier` | growth | event |
+| `sales_velocity` | `sales_velocity` | pro | event |
+| `buyer_mix_by_event` | `buyer_mix` | insight | event |
+| `gremial_benchmarks` | `market_aggregates` | starter | market |
+| `market_by_*` | `market_cross_tenant` | insight (premium) | market |
 
 Alias del diccionario PR #10: `basic`→`starter`, `intermediate`→`growth`, `premium`→`insight`.
 
@@ -92,7 +96,7 @@ Hasta que exista una tabla de suscripción, `DEFAULT_PLAN` (hoy `growth`) es el 
 ### 4. Privacidad
 
 - Analytics no lee `public.users` ni columnas PII. Las vistas `v_buyer_mix_*` pueden usar `user_id` **dentro** del SQL y **no** lo exponen; además omiten la fila si hay menos de 10 compradores distintos.
-- Un cliente no ve compradores, emails, teléfonos ni tickets de otro cliente.
+- Un cliente no ve compradores, emails, teléfonos ni tickets de otro cliente. El colectivo sí ve **agregados de compradores de SUS eventos** (`v_buyer_mix_by_event` + `event_ids`), nunca el público del local.
 - El mercado grueso (`gremial-benchmarks`) y el mercado anónimo (`v_market_by_*`) son agregados: sin IDs de tenant/venue/evento, sin PII. Las `v_market_by_*` omiten la celda si hay menos de 5 locales, 3 cuentas y 20 boletos.
 
 ### 5. Modelo futuro (escritura en `analytics`, no ahora)

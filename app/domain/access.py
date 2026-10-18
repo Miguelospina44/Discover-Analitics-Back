@@ -7,8 +7,8 @@ class AccessScope:
     """Resolved tenant window for a request.
 
     Empty venue_ids / event_ids means "all in the account" unless event_scoped.
-    tenant_filter=False is for anonymous market views: do not add account_id
-    (or any tenant identifier) to the query. Those views have no IDs in output.
+    Collectives/organizers are always event_scoped: venue_ids stays empty and
+    event_ids is required. tenant_filter=False is for anonymous market views.
     """
 
     account_id: UUID | None

@@ -102,7 +102,7 @@ Jerarquía (ADR 0007):
 
 - `venue` — un local / una cuenta.
 - `group` — varios locales (p. ej. Grupo Belisario) vía la misma cuenta o `child_account_ids`.
-- `collective` / `organizer` — solo `event_ids` propios; sin lista, 403.
+- `collective` / `organizer` — solo vistas por **evento** (`event_ids`); nunca asistencia/ventas del local. Sin eventos: nada propio. Mercado anónimo sí, según plan.
 
 Planes (`DEFAULT_PLAN`, hoy `growth` para no romper las rutas vivas): `starter` → `growth` → `pro` → `insight` (alias `premium` del diccionario). Cada uno suma entitlements. Un cliente nunca ve filas particulares de otro. `market_aggregates` (starter) es el gremial grueso; `market_cross_tenant` (insight/premium) son las `v_market_by_*` anónimas, sin filtro de tenant.
 

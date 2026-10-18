@@ -49,9 +49,10 @@ async def nightly_attendance(
     venue_id: UUID | None = Query(None),
     gender: str | None = Query(None),
 ) -> MeasureResponse:
-    principal.require_entitlement(NIGHTLY_ATTENDANCE.name)
     scope = principal.resolve_access_scope(
-        requested_account=account_id, requested_venue=venue_id
+        requested_account=account_id,
+        requested_venue=venue_id,
+        measure=NIGHTLY_ATTENDANCE.name,
     )
     scope_id = scope.account_id
     try:
@@ -99,9 +100,10 @@ async def sales_by_night(
     account_id: UUID | None = Query(None),
     venue_id: UUID | None = Query(None),
 ) -> SalesMeasureResponse:
-    principal.require_entitlement(SALES_BY_NIGHT.name)
     scope = principal.resolve_access_scope(
-        requested_account=account_id, requested_venue=venue_id
+        requested_account=account_id,
+        requested_venue=venue_id,
+        measure=SALES_BY_NIGHT.name,
     )
     scope_id = scope.account_id
     try:
@@ -150,9 +152,10 @@ async def attendance_by_gender(
     venue_id: UUID | None = Query(None),
     gender: str | None = Query(None),
 ) -> GenderMeasureResponse:
-    principal.require_entitlement(ATTENDANCE_BY_GENDER.name)
     scope = principal.resolve_access_scope(
-        requested_account=account_id, requested_venue=venue_id
+        requested_account=account_id,
+        requested_venue=venue_id,
+        measure=ATTENDANCE_BY_GENDER.name,
     )
     scope_id = scope.account_id
     try:
