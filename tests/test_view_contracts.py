@@ -26,6 +26,17 @@ REQUIRED_VIEWS = (
     "009_v_buyer_mix_by_month.sql",
     "010_v_activity_by_weekday.sql",
     "011_v_venues_normalized.sql",
+    "012_v_market_by_city.sql",
+    "013_v_market_by_venue_type.sql",
+    "014_v_market_by_weekday.sql",
+    "015_v_market_by_price_band.sql",
+)
+
+MARKET_VIEWS = (
+    "012_v_market_by_city.sql",
+    "013_v_market_by_venue_type.sql",
+    "014_v_market_by_weekday.sql",
+    "015_v_market_by_price_band.sql",
 )
 
 
@@ -132,3 +143,17 @@ def test_event_metrics_do_not_join_tiers_in_a_way_that_duplicates_tickets() -> N
     assert "COUNT(t.id)" in sql
     assert "venues.aforo" in sql or "v.aforo" in sql
     assert "e.capacity" in sql
+
+
+def test_market_views_are_anonymous_and_fail_closed() -> None:
+    for name in MARKET_VIEWS:
+        sql = _read(name)
+        body = _sql_body(sql)
+        assert " AS account_id" not in sql
+        assert " AS venue_id" not in sql
+        assert "sum(s.revenue_cents)" not in body.split("having")[-1]
+        assert ">= 5" in sql
+        assert ">= 3" in sql
+        assert ">= 20" in sql
+        assert "avg_tickets_per_venue" in sql
+        assert "median_avg_ticket_cents" in sql

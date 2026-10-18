@@ -11,12 +11,22 @@ from typing import Literal
 
 Quality = Literal["ok", "partial", "missing"]
 MetricPhase = Literal["v1", "v2"]
+ValueLine = Literal["audience", "operations", "sales"]
+PlanLevel = Literal["basic", "intermediate", "premium"]
 
 # COP operational amounts are pesos. Analytics stores revenue_cents = pesos * 100.
 PESOS_TO_CENTS = 100
 
 # Fail-closed privacy: never return a buyer cohort smaller than this.
 MIN_COHORT_SIZE = 10
+
+# Market trends (cross-tenant): hide the cell unless enough distinct locals AND tenants
+# AND a large enough event/ticket cohort. Owner cannot infer a competitor.
+MIN_MARKET_VENUES = 5
+MIN_MARKET_ACCOUNTS = 3
+MIN_MARKET_COHORT = 20
+
+PRICE_BANDS = ("free", "entry", "standard", "high", "premium_cover")
 
 # Paid orders only. Carts (INITIAL_TRANSACTION) and canceled are not sales.
 VALID_ORDER_STATUSES = frozenset({"COMPLETED", "CONFIRMED_FREE", "APPROVED"})
@@ -40,6 +50,8 @@ class MetricDefinition:
     privacy: str
     phase: MetricPhase
     seed_available: bool
+    value_line: ValueLine
+    suggested_plan: PlanLevel
 
 
 def pesos_to_cents(pesos: int) -> int:
@@ -119,6 +131,51 @@ def buyer_mix(
     return (new_buyers, returning_buyers, round((new_buyers / total) * 100, 2))
 
 
+def suppress_market_cell(
+    *,
+    venues: int,
+    accounts: int,
+    cohort: int,
+    min_venues: int = MIN_MARKET_VENUES,
+    min_accounts: int = MIN_MARKET_ACCOUNTS,
+    min_cohort: int = MIN_MARKET_COHORT,
+) -> bool:
+    """True when a market slice must be hidden (cannot infer one client)."""
+    return venues < min_venues or accounts < min_accounts or cohort < min_cohort
+
+
+def price_band(price_cop: int | None) -> str:
+    """Cover/ticket list price band in COP pesos (not cents)."""
+    pesos = 0 if price_cop is None else price_cop
+    if pesos <= 0:
+        return "free"
+    if pesos <= 40_000:
+        return "entry"
+    if pesos <= 80_000:
+        return "standard"
+    if pesos <= 150_000:
+        return "high"
+    return "premium_cover"
+
+
+def normalize_venue_type(raw: str | None) -> str:
+    if raw is None:
+        return "unknown"
+    table = str.maketrans("áéíóúüñÁÉÍÓÚÜÑ", "aeiouunAEIOUUN")
+    key = raw.strip().translate(table).lower()
+    mapping = {
+        "bar": "bar",
+        "discotk": "discoteca",
+        "discoteca": "discoteca",
+        "disco": "discoteca",
+        "club": "club",
+        "rooftop": "rooftop",
+        "unknown": "unknown",
+        "": "unknown",
+    }
+    return mapping.get(key, key or "unknown")
+
+
 def normalize_city(city: str | None) -> str | None:
     if city is None:
         return None
@@ -160,6 +217,8 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Solo totales de tenant. Sin filas de comprador ni ticket individual.",
         phase="v1",
         seed_available=True,
+        value_line="sales",
+        suggested_plan="basic",
     ),
     MetricDefinition(
         key="average_ticket",
@@ -179,6 +238,8 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Agregado. No se expone el precio pagado por una persona.",
         phase="v1",
         seed_available=True,
+        value_line="sales",
+        suggested_plan="basic",
     ),
     MetricDefinition(
         key="tickets_sold",
@@ -202,6 +263,8 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Solo conteos. Sin identificadores de ticket ni de usuario.",
         phase="v1",
         seed_available=False,
+        value_line="sales",
+        suggested_plan="basic",
     ),
     MetricDefinition(
         key="occupancy",
@@ -221,6 +284,8 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Agregado de puerta. No lista quién ingresó.",
         phase="v1",
         seed_available=False,
+        value_line="operations",
+        suggested_plan="intermediate",
     ),
     MetricDefinition(
         key="sellthrough_event",
@@ -241,6 +306,8 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Agregado por evento. Sin compradores.",
         phase="v1",
         seed_available=False,
+        value_line="operations",
+        suggested_plan="intermediate",
     ),
     MetricDefinition(
         key="sellthrough_tier",
@@ -260,6 +327,8 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Agregado por tier. Sin filas individuales.",
         phase="v1",
         seed_available=False,
+        value_line="operations",
+        suggested_plan="premium",
     ),
     MetricDefinition(
         key="sales_velocity",
@@ -279,6 +348,8 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Agregado por ventana. Sin timestamps individuales en la API de datos.",
         phase="v1",
         seed_available=False,
+        value_line="operations",
+        suggested_plan="premium",
     ),
     MetricDefinition(
         key="event_comparison",
@@ -298,6 +369,8 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Solo métricas de evento. Sin listado de asistentes.",
         phase="v1",
         seed_available=False,
+        value_line="operations",
+        suggested_plan="premium",
     ),
     MetricDefinition(
         key="period_comparison",
@@ -319,6 +392,8 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Totales de periodo. Sin personas.",
         phase="v1",
         seed_available=True,
+        value_line="sales",
+        suggested_plan="intermediate",
     ),
     MetricDefinition(
         key="venue_comparison",
@@ -338,6 +413,8 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Agregado por venue. Ciudades van normalizadas, no PII de compradores.",
         phase="v1",
         seed_available=True,
+        value_line="sales",
+        suggested_plan="intermediate",
     ),
     MetricDefinition(
         key="buyer_mix",
@@ -364,6 +441,8 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         ),
         phase="v1",
         seed_available=False,
+        value_line="audience",
+        suggested_plan="premium",
     ),
     MetricDefinition(
         key="purchase_peak_hours",
@@ -383,6 +462,8 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Histograma de 24 horas. Sin sesiones ni usuarios.",
         phase="v1",
         seed_available=False,
+        value_line="operations",
+        suggested_plan="intermediate",
     ),
     MetricDefinition(
         key="activity_by_weekday",
@@ -399,6 +480,8 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Siete buckets. Sin PII.",
         phase="v1",
         seed_available=True,
+        value_line="operations",
+        suggested_plan="intermediate",
     ),
     MetricDefinition(
         key="nightly_attendance",
@@ -414,6 +497,8 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Conteo de puerta. El mix de género vive en otra medida agregada.",
         phase="v1",
         seed_available=True,
+        value_line="operations",
+        suggested_plan="basic",
     ),
     MetricDefinition(
         key="sales_by_night_orders",
@@ -437,6 +522,8 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Agregado de órdenes. Sin comprador.",
         phase="v1",
         seed_available=True,
+        value_line="sales",
+        suggested_plan="basic",
     ),
     MetricDefinition(
         key="attendance_by_gender",
@@ -456,6 +543,102 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Ya agregado. No exponer si se pidiera un cruce que baje de 10 personas.",
         phase="v1",
         seed_available=True,
+        value_line="audience",
+        suggested_plan="premium",
+    ),
+    MetricDefinition(
+        key="market_by_city",
+        title="Tendencia de mercado por ciudad",
+        business_definition=(
+            "Cómo se mueve la noche en una ciudad (ticket medio, volumen por local), "
+            "sin ver a ningún cliente concreto. El dueño se compara con el mercado, no con un vecino."
+        ),
+        grain="ciudad normalizada; nunca account ni venue",
+        formula=(
+            "promedio y mediana por local; la celda se omite si venues < 5 "
+            "o accounts < 3 o boletos < 20"
+        ),
+        discover_source="v_ticket_sales_by_night + v_venues_normalized.city_normalized",
+        view_or_fact="analytics.v_market_by_city",
+        limitations=(
+            "Ciudades con pocos locales quedan vacías (fail-closed). No hay totales "
+            "que permitan restar para inferir un negocio. Seed Fase A no alcanza el umbral."
+        ),
+        privacy=(
+            f"Sin PII ni IDs. Fail-closed: ≥{MIN_MARKET_VENUES} locales, "
+            f"≥{MIN_MARKET_ACCOUNTS} tenants y ≥{MIN_MARKET_COHORT} boletos."
+        ),
+        phase="v1",
+        seed_available=True,
+        value_line="sales",
+        suggested_plan="premium",
+    ),
+    MetricDefinition(
+        key="market_by_venue_type",
+        title="Tendencia de mercado por tipo de local",
+        business_definition=(
+            "Patrón de bares vs discotecas vs rooftops en agregado. Sirve para ver "
+            "si el tipo de local del dueño está por encima o debajo del mercado."
+        ),
+        grain="tipo de local normalizado (bar, discoteca, club, rooftop)",
+        formula="igual que mercado por ciudad, agrupado por venue_type_normalized",
+        discover_source="venues.venue_type o catálogo venue-types; v_venues_normalized",
+        view_or_fact="analytics.v_market_by_venue_type",
+        limitations=(
+            "Tipo de local no está normalizado en DEV (bar / discotk). Si el tipo es "
+            "unknown y no hay masa crítica, la celda no se publica."
+        ),
+        privacy=(
+            f"Sin IDs de cliente. Mismos umbrales de mercado "
+            f"({MIN_MARKET_VENUES} locales / {MIN_MARKET_ACCOUNTS} tenants / "
+            f"{MIN_MARKET_COHORT} boletos)."
+        ),
+        phase="v1",
+        seed_available=False,
+        value_line="operations",
+        suggested_plan="premium",
+    ),
+    MetricDefinition(
+        key="market_by_weekday",
+        title="Tendencia de mercado por día de semana",
+        business_definition=(
+            "Qué días mueve más el mercado (no el local propio). Ayuda a decidir "
+            "si una noche floja es del negocio o de la ciudad."
+        ),
+        grain="iso_weekday (1=lunes … 7=domingo)",
+        formula="promedio/mediana por local-noche; fail-closed con umbrales de mercado",
+        discover_source="v_ticket_sales_by_night.night_date (ISODOW, Bogotá)",
+        view_or_fact="analytics.v_market_by_weekday",
+        limitations="Festivos rompen el patrón. Un solo jueves con 2 locales no se publica.",
+        privacy="Sin account_id ni venue_id en la salida. Solo tendencias.",
+        phase="v1",
+        seed_available=True,
+        value_line="operations",
+        suggested_plan="premium",
+    ),
+    MetricDefinition(
+        key="market_by_price_band",
+        title="Tendencia de mercado por rango de precio",
+        business_definition=(
+            "Cómo se venden las noches según el precio de lista (gratis, entrada, "
+            "estándar, alto, cover premium). El dueño ve si su ticket está alineado."
+        ),
+        grain="price_band del cover/evento en COP pesos",
+        formula=(
+            "bandas: free=0; entry≤40k; standard≤80k; high≤150k; premium_cover>150k. "
+            "Promedios por local; umbrales de mercado."
+        ),
+        discover_source="COALESCE(price_paid_cop, tier.price_cop, event.price_cop)",
+        view_or_fact="analytics.v_market_by_price_band",
+        limitations=(
+            "La banda usa pesos COP, no centavos. Un precio único por ciudad con pocos "
+            "locales no se muestra."
+        ),
+        privacy="Agregado de banda. Nunca el precio de un comprador ni de un venue.",
+        phase="v1",
+        seed_available=False,
+        value_line="sales",
+        suggested_plan="premium",
     ),
 )
 
@@ -475,6 +658,8 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Agregar campañas; no perfiles de click.",
         phase="v2",
         seed_available=False,
+        value_line="sales",
+        suggested_plan="premium",
     ),
     MetricDefinition(
         key="refund_rate",
@@ -488,6 +673,8 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Agregado. Sin motivo individual.",
         phase="v2",
         seed_available=False,
+        value_line="sales",
+        suggested_plan="intermediate",
     ),
     MetricDefinition(
         key="forecast_vs_actual",
@@ -501,6 +688,8 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Metas de negocio, no personas.",
         phase="v2",
         seed_available=False,
+        value_line="sales",
+        suggested_plan="intermediate",
     ),
     MetricDefinition(
         key="buyer_ltv",
@@ -514,6 +703,8 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Solo cohortes ≥20. Nunca LTV de un user_id expuesto.",
         phase="v2",
         seed_available=False,
+        value_line="audience",
+        suggested_plan="premium",
     ),
     MetricDefinition(
         key="checkin_duration",
@@ -527,6 +718,8 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Promedio de evento, no de persona.",
         phase="v2",
         seed_available=False,
+        value_line="operations",
+        suggested_plan="premium",
     ),
     MetricDefinition(
         key="social_engagement",
@@ -540,6 +733,8 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Métricas de página, no de perfiles de asistentes.",
         phase="v2",
         seed_available=False,
+        value_line="audience",
+        suggested_plan="premium",
     ),
     MetricDefinition(
         key="contribution_margin",
@@ -553,6 +748,8 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Números de negocio del tenant.",
         phase="v2",
         seed_available=False,
+        value_line="sales",
+        suggested_plan="premium",
     ),
     MetricDefinition(
         key="nps",
@@ -566,6 +763,8 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Score agregado; no respuestas individuales.",
         phase="v2",
         seed_available=False,
+        value_line="audience",
+        suggested_plan="premium",
     ),
     MetricDefinition(
         key="predictive_sellthrough",
@@ -579,6 +778,8 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Predicción de inventario, no de personas.",
         phase="v2",
         seed_available=False,
+        value_line="operations",
+        suggested_plan="premium",
     ),
     MetricDefinition(
         key="buyer_geo",
@@ -592,6 +793,8 @@ V2_METRICS: tuple[MetricDefinition, ...] = (
         privacy="Prohibido en v1. Si se hace, umbral ≥20 y sin barrios.",
         phase="v2",
         seed_available=False,
+        value_line="audience",
+        suggested_plan="premium",
     ),
 )
 

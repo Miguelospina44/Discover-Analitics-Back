@@ -11,13 +11,13 @@ Estado: **diseñado y cableado en código**; smoke contra DEV queda pendiente de
 | Sales seed vs vista | [`app/data/sales_repository.py`](../app/data/sales_repository.py) |
 | Métricas v1 (eventos, tiers, ritmo, mix, horas) | [`app/data/metrics_repository.py`](../app/data/metrics_repository.py) |
 | Definiciones | [`app/domain/metric_definitions.py`](../app/domain/metric_definitions.py), [`docs/metrics-dictionary.md`](metrics-dictionary.md) |
-| Vistas | [`sql/views/`](../sql/views/) `001`–`011` |
+| Vistas | [`sql/views/`](../sql/views/) `001`–`015` (propias + mercado anónimo) |
 
 ## Pasos para activar (cuando toque)
 
 1. En la Postgres de Discover (local `pary_db` o DEV `pary_db_test`):
    - `alembic upgrade head` (crea schema `analytics` de escritura).
-   - Aplicar `sql/views/001`–`011` en orden. `001`/`002` son el puente de asistencia y órdenes; `003`+ usan `ticket_tiers`, `price_paid_cop` y `purchased_at` del modelo Discover.
+   - Aplicar `sql/views/001`–`015` en orden. `001`/`002` son el puente de asistencia y órdenes; `003`–`011` usan `ticket_tiers`, `price_paid_cop` y `purchased_at`; `012`–`015` son tendencias de mercado (sin IDs, umbral de locales y de cohorte).
 2. `.env`:
    - `DATA_SOURCE=discover`
    - `DATABASE_URL` / `ALEMBIC_DATABASE_URL` → esa Postgres

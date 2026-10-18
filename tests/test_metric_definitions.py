@@ -14,7 +14,11 @@ from app.data.sales_repository import SalesPoint
 from app.domain.metric_definitions import (
     CANCELED_TICKET_STATUSES,
     MIN_COHORT_SIZE,
+    MIN_MARKET_ACCOUNTS,
+    MIN_MARKET_COHORT,
+    MIN_MARKET_VENUES,
     PESOS_TO_CENTS,
+    PRICE_BANDS,
     V1_METRICS,
     V2_METRICS,
     V2_PRIORITY,
@@ -27,11 +31,14 @@ from app.domain.metric_definitions import (
     is_paid_order_status,
     metric_by_key,
     normalize_city,
+    normalize_venue_type,
     occupancy_pct,
     period_change_pct,
     pesos_to_cents,
+    price_band,
     sales_window,
     sellthrough_pct,
+    suppress_market_cell,
     suppress_small_cohort,
 )
 
@@ -52,6 +59,10 @@ def test_v1_catalog_is_complete_for_owners() -> None:
         "buyer_mix",
         "purchase_peak_hours",
         "activity_by_weekday",
+        "market_by_city",
+        "market_by_venue_type",
+        "market_by_weekday",
+        "market_by_price_band",
     }.issubset(keys)
 
 
@@ -66,6 +77,21 @@ def test_every_v1_metric_has_executive_fields() -> None:
         assert item.view_or_fact
         assert item.limitations
         assert item.privacy
+        assert item.value_line in {"audience", "operations", "sales"}
+        assert item.suggested_plan in {"basic", "intermediate", "premium"}
+
+
+def test_value_lines_and_suggested_plans_cover_the_product() -> None:
+    lines = {item.value_line for item in V1_METRICS}
+    plans = {item.suggested_plan for item in V1_METRICS}
+    assert lines == {"audience", "operations", "sales"}
+    assert plans == {"basic", "intermediate", "premium"}
+    assert metric_by_key("buyer_mix").value_line == "audience"
+    assert metric_by_key("occupancy").value_line == "operations"
+    assert metric_by_key("revenue").value_line == "sales"
+    assert metric_by_key("revenue").suggested_plan == "basic"
+    assert metric_by_key("market_by_city").suggested_plan == "premium"
+    assert all(item.suggested_plan for item in V2_METRICS)
 
 
 def test_v2_priority_covers_catalog_and_is_ordered() -> None:
@@ -143,6 +169,27 @@ def test_buyer_mix_privacy_floor() -> None:
     assert buyer_mix(3, 4) is None
     assert buyer_mix(4, 6) == (4, 6, 40.0)
     assert buyer_mix(0, 10) == (0, 10, 0.0)
+
+
+def test_market_cell_is_fail_closed_on_venues_accounts_and_cohort() -> None:
+    assert MIN_MARKET_VENUES == 5
+    assert MIN_MARKET_ACCOUNTS == 3
+    assert MIN_MARKET_COHORT == 20
+    assert suppress_market_cell(venues=5, accounts=3, cohort=20) is False
+    assert suppress_market_cell(venues=4, accounts=3, cohort=20) is True
+    assert suppress_market_cell(venues=5, accounts=2, cohort=20) is True
+    assert suppress_market_cell(venues=5, accounts=3, cohort=19) is True
+
+
+def test_price_band_uses_cop_pesos() -> None:
+    assert price_band(0) == "free"
+    assert price_band(40_000) == "entry"
+    assert price_band(85_000) == "high"
+    assert price_band(200_000) == "premium_cover"
+    assert PRICE_BANDS == ("free", "entry", "standard", "high", "premium_cover")
+    assert normalize_venue_type("discotk") == "discoteca"
+    assert normalize_venue_type("BAR") == "bar"
+    assert normalize_venue_type(None) == "unknown"
 
 
 def test_city_normalization_handles_dirty_casing() -> None:

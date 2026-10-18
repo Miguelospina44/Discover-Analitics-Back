@@ -3,6 +3,7 @@
 from datetime import date
 from uuid import uuid4
 
+from app.data.benchmark_repository import _slice_from_row
 from app.data.metrics_repository import (
     COHORT_FLOOR,
     EventMetricRow,
@@ -51,6 +52,25 @@ def test_empty_sales_summary_has_no_fake_average() -> None:
     assert summary.order_or_ticket_count == 0
     assert summary.revenue_cents == 0
     assert summary.average_ticket_cents is None
+
+
+def test_market_slice_drops_thin_cells() -> None:
+    thin = {
+        "slice_key": "Medellín",
+        "venues_in_sample": 2,
+        "accounts_in_sample": 2,
+        "avg_tickets_per_venue": 10,
+        "median_tickets_per_venue": 10,
+        "avg_revenue_cents_per_venue": 100,
+        "median_avg_ticket_cents": 10,
+        "cohort": 8,
+    }
+    assert _slice_from_row("city", thin) is None
+    wide = {**thin, "venues_in_sample": 5, "accounts_in_sample": 3, "cohort": 20}
+    row = _slice_from_row("city", wide)
+    assert row is not None
+    assert row.slice_key == "Medellín"
+    assert row.venues_in_sample == 5
 
 
 def test_compare_summaries_on_empty_previous() -> None:

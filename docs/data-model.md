@@ -123,6 +123,10 @@ Ver [phase-b-discover.md](phase-b-discover.md) y el [diccionario de métricas](m
 | `v_activity_by_weekday` | account + ISODOW | Mix semanal |
 | `v_buyer_mix_by_event` | evento | Nuevos vs recurrentes, n≥10 |
 | `v_buyer_mix_by_month` | mes | Igual, n≥10 |
-| `v_venues_normalized` | venue | Ciudad limpia + aforo |
+| `v_venues_normalized` | venue | Ciudad y tipo de local limpios + aforo |
+| `v_market_by_city` | ciudad | Mercado anónimo; ≥5 locales / ≥3 tenants / ≥20 boletos |
+| `v_market_by_venue_type` | tipo de local | Igual, fail-closed |
+| `v_market_by_weekday` | ISODOW | Igual, fail-closed |
+| `v_market_by_price_band` | banda de precio | Igual, fail-closed |
 
-Todas son solo lectura, con `account_id`, sin PII.
+Las vistas de tenant son solo lectura, con `account_id`, sin PII. Las de mercado **no exponen** `account_id` ni `venue_id`.
