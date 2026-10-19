@@ -30,6 +30,7 @@ REQUIRED_VIEWS = (
     "013_v_market_by_venue_type.sql",
     "014_v_market_by_weekday.sql",
     "015_v_market_by_price_band.sql",
+    "016_v_audience_by_gender_age.sql",
 )
 
 MARKET_VIEWS = (
@@ -61,7 +62,7 @@ def _sql_body(sql: str) -> str:
 def test_expected_views_exist() -> None:
     names = {path.name for path in _sql_files()}
     assert set(REQUIRED_VIEWS) == names
-    assert len(REQUIRED_VIEWS) == 15
+    assert len(REQUIRED_VIEWS) == 16
     assert "011_v_promoter_performance.sql" not in names
     assert "010_v_promo_performance.sql" not in names
 
@@ -144,6 +145,21 @@ def test_event_metrics_do_not_join_tiers_in_a_way_that_duplicates_tickets() -> N
     assert "COUNT(t.id)" in sql
     assert "venues.aforo" in sql or "v.aforo" in sql
     assert "e.capacity" in sql
+
+
+def test_audience_gender_age_view_is_aggregate_only() -> None:
+    sql = _read("016_v_audience_by_gender_age.sql")
+    body = _sql_body(sql)
+    assert "CREATE OR REPLACE VIEW analytics.v_audience_by_gender_age" in sql
+    assert "COUNT(DISTINCT t.user_id)" in sql
+    assert " AS user_id" not in sql
+    assert "u.gender" in sql
+    assert "u.birth_date" in sql
+    assert "sin_dato" in sql
+    assert "18-24" in sql
+    assert "55+" in sql
+    assert "email" not in body
+    assert "birth_date" in body
 
 
 def test_market_views_are_anonymous_and_fail_closed() -> None:

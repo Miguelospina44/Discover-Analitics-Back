@@ -14,7 +14,7 @@ Estado: **conexión de solo lectura cableada**; smoke contra un Discover real qu
 | Sales seed vs vista | [`app/data/sales_repository.py`](../app/data/sales_repository.py) |
 | Métricas v1 (eventos, tiers, ritmo, mix, horas) | [`app/data/metrics_repository.py`](../app/data/metrics_repository.py) |
 | Definiciones | [`app/domain/metric_definitions.py`](../app/domain/metric_definitions.py), [`docs/metrics-dictionary.md`](metrics-dictionary.md) |
-| Vistas 001–015 | [`sql/views/`](../sql/views/) (propias + mercado anónimo) |
+| Vistas 001–016 | [`sql/views/`](../sql/views/) (propias + mercado anónimo + audiencia) |
 | Allowlist + GRANTs | [`app/domain/discover_views.py`](../app/domain/discover_views.py), [discover-readonly-setup.sql](discover-readonly-setup.sql) |
 | Tenant / planes | [adr/0007-tenant-hierarchy-and-entitlements.md](adr/0007-tenant-hierarchy-and-entitlements.md) |
 | Usuario SELECT-only | [`docs/discover-readonly-setup.sql`](discover-readonly-setup.sql) |
@@ -24,7 +24,7 @@ Estado: **conexión de solo lectura cableada**; smoke contra un Discover real qu
 ## Pasos para activar (cuando toque)
 
 1. En la Postgres de Discover (nunca desde este repo con credenciales reales):
-   - Aplicar `sql/views/001`–`015` en orden. `001`/`002` son el puente de asistencia y órdenes; `003`–`011` usan `ticket_tiers`, `price_paid_cop` y `purchased_at`; `012`–`015` son tendencias de mercado (sin IDs, umbral de locales y de cohorte).
+   - Aplicar `sql/views/001`–`016` en orden. `001`/`002` son el puente de asistencia y órdenes; `003`–`011` usan `ticket_tiers`, `price_paid_cop` y `purchased_at`; `012`–`015` son tendencias de mercado (sin IDs, umbral de locales y de cohorte); `016` es género × edad (agregado).
    - Crear rol `analytics_readonly` con `GRANT SELECT` solo sobre esas vistas. Ver `docs/discover-readonly-setup.sql`.
 2. En la Postgres **propia** de Analytics (`discover_analytics`):
    - `alembic upgrade head` (auth, consultoría, facts seed).

@@ -138,6 +138,29 @@ class GenderMeasureResponse(BaseModel):
     points: list[GenderPointOut]
 
 
+class AudienceGenderAgePointOut(BaseModel):
+    gender: str
+    age_band: str
+    headcount: int
+    share: float
+
+
+class AudienceGenderAgeResponse(BaseModel):
+    name: str
+    title: str
+    unit: str
+    definition: str
+    as_of: date | None
+    data_quality: str
+    data_source: str
+    is_demo: bool
+    demo_label: str | None = None
+    scope: str
+    k_anonymity: int
+    suppressed: bool
+    points: list[AudienceGenderAgePointOut]
+
+
 class FindingCreate(BaseModel):
     engagement_id: UUID
     title: str

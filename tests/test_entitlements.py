@@ -54,6 +54,8 @@ def test_starter_blocks_gender_and_buyer_mix() -> None:
     with pytest.raises(ForbiddenError):
         principal.require_entitlement("attendance_by_gender")
     with pytest.raises(ForbiddenError):
+        principal.require_entitlement("audience_by_gender_age")
+    with pytest.raises(ForbiddenError):
         principal.require_entitlement("buyer_mix_by_event")
     with pytest.raises(ForbiddenError):
         principal.require_entitlement("market_by_city")
@@ -129,6 +131,7 @@ def test_collective_never_sees_venue_grain_even_with_events() -> None:
     principal.require_entitlement("sellthrough_by_tier")
     principal.require_entitlement("sales_velocity")
     principal.require_entitlement("buyer_mix_by_event")
+    principal.require_entitlement("audience_by_gender_age")
     principal.require_entitlement("gremial_benchmarks")
     principal.require_entitlement("market_by_city")
 
@@ -172,10 +175,11 @@ def test_collective_without_events_can_read_market() -> None:
         principal.resolve_access_scope()
 
 
-def test_fifteen_discover_views_have_no_pii_columns() -> None:
+def test_sixteen_discover_views_have_no_pii_columns() -> None:
     names = discover_view_names()
-    assert len(names) == 15
+    assert len(names) == 16
     assert names[0] == "analytics.v_nightly_attendance"
+    assert "analytics.v_audience_by_gender_age" in names
     assert names[-1] == "analytics.v_market_by_price_band"
     assert market_view_names() == (
         "analytics.v_market_by_city",
@@ -202,9 +206,9 @@ def test_readonly_sql_grants_the_allowlist() -> None:
 def test_allowlist_matches_sql_view_files() -> None:
     views_dir = Path("sql/views")
     sql_files = sorted(views_dir.glob("*.sql"))
-    assert len(sql_files) == 15
+    assert len(sql_files) == 16
     names = discover_view_names()
-    assert len(names) == 15
+    assert len(names) == 16
     for view in DISCOVER_VIEWS:
         short = view.name.removeprefix("analytics.")
         matches = [path for path in sql_files if path.stem.endswith(short)]

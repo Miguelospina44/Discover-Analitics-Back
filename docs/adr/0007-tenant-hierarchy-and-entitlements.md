@@ -77,6 +77,7 @@ Claves de entitlement (código) y medidas actuales:
 | `sales_by_night` | `sales_by_night` | starter | venue |
 | `ticket_sales_by_night` | `ticket_sales_by_night` | growth | venue |
 | `attendance_by_gender` | `attendance_by_gender` | growth | venue |
+| `audience_by_gender_age` | `audience_by_gender_age` | growth | event (filtra `event_ids`) |
 | `venues_normalized` | `venues_normalized` | pro | venue |
 | `purchase_hours` / `activity_by_weekday` | esos | pro | venue |
 | `buyer_mix_by_month` | `buyer_mix` | insight | venue |

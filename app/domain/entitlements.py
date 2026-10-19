@@ -37,6 +37,7 @@ _PLAN_OWN_ENTITLEMENTS: dict[str, frozenset[str]] = {
             "event_metrics",
             "sellthrough_by_tier",
             "attendance_by_gender",
+            "audience_by_gender_age",
         }
     ),
     "pro": frozenset(
@@ -55,6 +56,7 @@ MEASURE_ENTITLEMENT: dict[str, str] = {
     "sales_by_night": "sales_by_night",
     "gremial_benchmarks": "market_aggregates",
     "attendance_by_gender": "attendance_by_gender",
+    "audience_by_gender_age": "audience_by_gender_age",
     "ticket_sales_by_night": "ticket_sales_by_night",
     "event_metrics": "event_metrics",
     "sellthrough_by_tier": "sellthrough_by_tier",
@@ -91,6 +93,7 @@ _EVENT_GRAIN: frozenset[str] = frozenset(
         "sales_velocity",
         "buyer_mix",
         "buyer_mix_by_event",
+        "audience_by_gender_age",
     }
 )
 _MARKET_GRAIN: frozenset[str] = frozenset(

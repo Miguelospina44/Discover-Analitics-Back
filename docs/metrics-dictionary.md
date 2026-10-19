@@ -93,6 +93,56 @@ Retrato agregado de **quién** compra. Nunca una persona.
 
 **Limitaciones.** En Fase B no hay género en tickets.
 
+### Audiencia por género y rango de edad — intermedio · local y colectivo (el colectivo solo sus eventos)
+
+**Definición.** Compradores distintos por género declarado y banda de edad. Gráfica de público, nunca una persona.
+
+**Grano.** `gender` × `age_band` en el periodo y alcance autenticado.
+
+**Fórmula.** `COUNT(DISTINCT tickets.user_id)`. Edad = años a `events.date`. Bandas: `18-24`, `25-34`, `35-44`, `45-54`, `55+`. Género o edad nulos / no parseables → `sin_dato`. No se inventan valores.
+
+**Fuente / vista.** Seed: celdas de ejemplo con `is_demo=true`. Discover: `analytics.v_audience_by_gender_age` (rol `analytics_readonly`).
+
+**Privacidad.** Si el total del alcance es &lt; 10, no hay puntos. Cada celda &lt; 10 se agrupa en `otros`/`otros` solo si ese residual llega a 10; si no, se omite. Sin `user_id`, email, nombre ni fecha de nacimiento en la respuesta.
+
+**Columnas Discover asumidas (verificar en la base real):** `users.gender` (text), `users.birth_date` (date), `tickets.user_id`, `events.date`. Alternativas no usadas en el SQL: `users.birthdate`, `users.date_of_birth`, `users.age`, `users.sexo`.
+
+**Endpoint.** `GET /api/v1/metrics/audience-by-gender-age`
+
+**JSON de ejemplo (seed, `is_demo=true`):**
+
+```json
+{
+  "name": "audience_by_gender_age",
+  "title": "Audiencia por género y rango de edad",
+  "unit": "headcount",
+  "definition": "Compradores distintos por género declarado y rango de edad (18-24 … 55+). Celdas con menos de 10 personas se agrupan en otros o se omiten. Género o edad nulos van a sin_dato. No expone user_id ni filas individuales.",
+  "as_of": "2026-10-19",
+  "data_quality": "ok",
+  "data_source": "seed",
+  "is_demo": true,
+  "demo_label": "Datos de ejemplo (DATA_SOURCE=seed). No son filas de Discover.",
+  "scope": "account",
+  "k_anonymity": 10,
+  "suppressed": false,
+  "points": [
+    {"gender": "woman", "age_band": "18-24", "headcount": 28, "share": 0.1186},
+    {"gender": "woman", "age_band": "25-34", "headcount": 41, "share": 0.1737},
+    {"gender": "woman", "age_band": "35-44", "headcount": 22, "share": 0.0932},
+    {"gender": "woman", "age_band": "45-54", "headcount": 14, "share": 0.0593},
+    {"gender": "man", "age_band": "18-24", "headcount": 19, "share": 0.0805},
+    {"gender": "man", "age_band": "25-34", "headcount": 36, "share": 0.1525},
+    {"gender": "man", "age_band": "35-44", "headcount": 24, "share": 0.1017},
+    {"gender": "man", "age_band": "45-54", "headcount": 12, "share": 0.0508},
+    {"gender": "man", "age_band": "55+", "headcount": 11, "share": 0.0466},
+    {"gender": "other", "age_band": "25-34", "headcount": 11, "share": 0.0466},
+    {"gender": "sin_dato", "age_band": "sin_dato", "headcount": 18, "share": 0.0763}
+  ]
+}
+```
+
+En `DATA_SOURCE=discover` el mismo contrato trae `is_demo: false`, `demo_label: null` y los conteos de la vista.
+
 ---
 
 ## 2. Patrones de operación
@@ -225,7 +275,7 @@ Más datos → más refinamiento de plan. Orden de valor:
 
 ## Cómo aplicar las vistas
 
-En la Postgres de Discover, schema `analytics`, archivos `sql/views/001`–`015` en orden. Sin DDL sobre `public`. Otro agente gestiona secretos; este carril no lee `.env`.
+En la Postgres de Discover, schema `analytics`, archivos `sql/views/001`–`016` en orden. Sin DDL sobre `public`. Otro agente gestiona secretos; este carril no lee `.env`.
 
 ## Contrato pendiente con el frontend
 

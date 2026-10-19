@@ -17,3 +17,12 @@ def test_metrics_fail_closed_without_token() -> None:
             params={"period_start": "2026-08-01", "period_end": "2026-08-31"},
         )
     assert response.status_code == 401
+
+
+def test_audience_gender_age_fails_closed_without_token() -> None:
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/v1/metrics/audience-by-gender-age",
+            params={"period_start": "2026-08-01", "period_end": "2026-08-31"},
+        )
+    assert response.status_code == 401

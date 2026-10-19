@@ -113,7 +113,7 @@ Hechos: 14 noches (2026-08-01 … 2026-08-14) × 2 venues.
 
 Ver [phase-b-discover.md](phase-b-discover.md) y el [diccionario de métricas](metrics-dictionary.md). Las vistas viven en `sql/views/` y se aplican sobre la Postgres de Discover; la app no duplica `orders`/`tickets`.
 
-Las 15 vistas `analytics.v_*` y sus columnas permitidas están en [architecture.md](architecture.md#minimizaci%C3%B3n-de-datos) y [`app/domain/discover_views.py`](../app/domain/discover_views.py). Las `v_market_by_*` no llevan `account_id` (agregado entre clientes). No se leen `public.users` (ni `password`/`password_hash`/email/teléfono/`user_id` expuesto), ni detalle de compradores o pagos.
+Las 16 vistas `analytics.v_*` y sus columnas permitidas están en [architecture.md](architecture.md#minimizaci%C3%B3n-de-datos) y [`app/domain/discover_views.py`](../app/domain/discover_views.py). Las `v_market_by_*` no llevan `account_id` (agregado entre clientes). No se leen `public.users` fila a fila (ni `password`/`password_hash`/email/teléfono/`user_id` expuesto); `v_audience_by_gender_age` usa `users.gender` / `users.birth_date` solo dentro del SQL y publica agregados.
 
 | Vista | Grano | Para qué |
 |---|---|---|
@@ -128,6 +128,7 @@ Las 15 vistas `analytics.v_*` y sus columnas permitidas están en [architecture.
 | `v_buyer_mix_by_event` | evento | Nuevos vs recurrentes, n≥10 |
 | `v_buyer_mix_by_month` | mes | Igual, n≥10 |
 | `v_venues_normalized` | venue | Ciudad y tipo de local limpios + aforo |
+| `v_audience_by_gender_age` | evento + género + edad | Compradores distintos; k-anon en la API |
 | `v_market_by_city` | ciudad | Mercado anónimo; ≥5 locales / ≥3 tenants / ≥20 boletos |
 | `v_market_by_venue_type` | tipo de local | Igual, fail-closed |
 | `v_market_by_weekday` | ISODOW | Igual, fail-closed |
