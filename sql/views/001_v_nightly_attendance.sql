@@ -1,6 +1,8 @@
 -- Read-only aggregation over Discover operational tables.
 -- Apply on the same Postgres. Does not copy rows.
--- Assumption: venues.account_id is the tenant. tickets.redemption_date is unix seconds.
+-- Tenant: venues.account_id. Repositories MUST also filter account_id.
+-- Redeemed ticket = redemption_date IS NOT NULL (unix seconds → America/Bogota).
+-- Venue comes from tickets.venue_id (cover/door) when present.
 
 CREATE OR REPLACE VIEW analytics.v_nightly_attendance AS
 SELECT

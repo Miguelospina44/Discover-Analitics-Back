@@ -34,29 +34,6 @@ def _attendance_sql(
     )
 
 
-# Discover fallback without gender/venue filters on detail
-DISCOVER_SQL = text(
-    """
-    SELECT account_id, venue_id, night_date, redeemed_tickets
-    FROM analytics.v_nightly_attendance
-    WHERE account_id = :account_id
-      AND night_date >= :period_start
-      AND night_date <= :period_end
-    ORDER BY night_date ASC
-    """
-)
-
-DISCOVER_SQL_ALL = text(
-    """
-    SELECT account_id, venue_id, night_date, redeemed_tickets
-    FROM analytics.v_nightly_attendance
-    WHERE night_date >= :period_start
-      AND night_date <= :period_end
-    ORDER BY night_date ASC
-    """
-)
-
-
 class AttendanceRepository:
     def __init__(
         self,
@@ -73,7 +50,10 @@ class AttendanceRepository:
         period_end: date,
         venue_id: UUID | None = None,
         gender: str | None = None,
+        actor: str = "venue",
     ) -> list[AttendancePoint]:
+        if actor == "organizer":
+            return []
         seed = self._settings.uses_seed_facts
         params: dict = {"period_start": period_start, "period_end": period_end}
         if account_id is not None:
@@ -90,15 +70,27 @@ class AttendanceRepository:
                 gender=gender,
             )
         else:
-            # Discover path: ignore gender until view supports it
-            sql = DISCOVER_SQL_ALL if account_id is None else DISCOVER_SQL
+            # Discover path: gender is not in v_nightly_attendance.
+            where = [
+                "night_date >= :period_start",
+                "night_date <= :period_end",
+            ]
+            if account_id is not None:
+                where.append("account_id = :account_id")
             if venue_id is not None:
-                # best-effort client filter after fetch if view has no venue param
-                pass
+                where.append("venue_id = :venue_id")
+            sql = text(
+                f"""
+                SELECT account_id, venue_id, night_date, redeemed_tickets
+                FROM analytics.v_nightly_attendance
+                WHERE {" AND ".join(where)}
+                ORDER BY night_date ASC
+                """
+            )
 
         result = await self._session.execute(sql, params)
         rows = result.mappings().all()
-        points = [
+        return [
             AttendancePoint(
                 venue_id=row["venue_id"],
                 night_date=row["night_date"],
@@ -107,9 +99,6 @@ class AttendanceRepository:
             )
             for row in rows
         ]
-        if not seed and venue_id is not None:
-            points = [p for p in points if p.venue_id == venue_id]
-        return points
 
     async def list_for_account(
         self,

@@ -62,7 +62,7 @@ Analytics **no** lee tablas `public` de Discover. Solo las 15 vistas agregadas d
 | `v_event_metrics` | `account_id`, `event_id`, `venue_id`, `event_date`, `event_capacity`, `venue_aforo`, `tickets_sold`, `tickets_redeemed`, `revenue_cents`, `sellthrough_pct`, `occupancy_pct` | growth |
 | `v_sellthrough_by_tier` | `account_id`, `event_id`, `venue_id`, `tier_id`, `tier_price_cop`, `tier_capacity`, `tickets_sold`, `sellthrough_pct` | growth |
 | `v_sales_velocity` | `account_id`, `event_id`, `venue_id`, `event_date`, `window_key`, `tickets_sold`, `revenue_cents` | pro |
-| `v_purchase_hours` | `account_id`, `hour_of_day`, `tickets_sold`, `revenue_cents` | pro |
+| `v_purchase_hours` | `account_id`, `event_id`, `hour_of_day`, `tickets_sold`, `revenue_cents` | pro |
 | `v_activity_by_weekday` | `account_id`, `iso_weekday`, `tickets_sold`, `revenue_cents` | pro |
 | `v_venues_normalized` | `account_id`, `venue_id`, `aforo`, `city_raw`, `city_normalized`, `venue_type_normalized` | pro |
 | `v_buyer_mix_by_event` | `account_id`, `event_id`, `venue_id`, `buyer_count`, `new_buyers`, `returning_buyers` | insight |
@@ -93,6 +93,8 @@ tickets.redemption_date
   → GET /api/v1/metrics/nightly-attendance
   → (front) KPI + hallazgo opcional
 ```
+
+Contrato HTTP aún abierto (sin inventar campos): unidad de `revenue_cents` (pesos vs centavos), promedio de ingresos del sector (no está en `GremialBenchmarksResponse`) y recorte de audiencia en ventas (no está en `GET /sales-by-night`). Detalle en [metrics-dictionary.md](metrics-dictionary.md#contrato-pendiente-con-el-frontend).
 
 ## Auth, tenant y planes
 

@@ -85,9 +85,10 @@ DISCOVER_VIEWS: tuple[DiscoverView, ...] = (
     ),
     DiscoverView(
         name="analytics.v_purchase_hours",
-        columns=("account_id", "hour_of_day", "tickets_sold", "revenue_cents"),
-        grain="account + hour",
+        columns=("account_id", "event_id", "hour_of_day", "tickets_sold", "revenue_cents"),
+        grain="account + event + hour",
         min_plan="pro",
+        access_grain="event",
     ),
     DiscoverView(
         name="analytics.v_buyer_mix_by_event",

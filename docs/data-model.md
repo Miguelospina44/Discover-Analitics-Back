@@ -111,6 +111,30 @@ Hechos: 14 noches (2026-08-01 … 2026-08-14) × 2 venues.
 
 ## Fase B (derivado Discover)
 
-Ver [phase-b-discover.md](phase-b-discover.md). Las vistas viven en `sql/views/` y se aplican sobre la Postgres de Discover; la app no duplica `orders`/`tickets`.
+Ver [phase-b-discover.md](phase-b-discover.md) y el [diccionario de métricas](metrics-dictionary.md). Las vistas viven en `sql/views/` y se aplican sobre la Postgres de Discover; la app no duplica `orders`/`tickets`.
 
 Las 15 vistas `analytics.v_*` y sus columnas permitidas están en [architecture.md](architecture.md#minimizaci%C3%B3n-de-datos) y [`app/domain/discover_views.py`](../app/domain/discover_views.py). Las `v_market_by_*` no llevan `account_id` (agregado entre clientes). No se leen `public.users` (ni `password`/`password_hash`/email/teléfono/`user_id` expuesto), ni detalle de compradores o pagos.
+
+| Vista | Grano | Para qué |
+|---|---|---|
+| `v_nightly_attendance` | venue + noche | Check-ins |
+| `v_sales_by_night` | venue + noche | Órdenes pagadas (puente) |
+| `v_ticket_sales_by_night` | venue + noche | Boletos e ingreso (`price_paid_cop`) |
+| `v_event_metrics` | evento | Ingreso, ocupación, sell-through |
+| `v_sellthrough_by_tier` | tier | Etapas de precio; `COUNT` no `sold_quantity` |
+| `v_sales_velocity` | evento + ventana | Ritmo pre-evento |
+| `v_purchase_hours` | account + event + hora | Horas pico (filtrable por `event_ids`) |
+| `v_activity_by_weekday` | account + ISODOW | Mix semanal |
+| `v_buyer_mix_by_event` | evento | Nuevos vs recurrentes, n≥10 |
+| `v_buyer_mix_by_month` | mes | Igual, n≥10 |
+| `v_venues_normalized` | venue | Ciudad y tipo de local limpios + aforo |
+| `v_market_by_city` | ciudad | Mercado anónimo; ≥5 locales / ≥3 tenants / ≥20 boletos |
+| `v_market_by_venue_type` | tipo de local | Igual, fail-closed |
+| `v_market_by_weekday` | ISODOW | Igual, fail-closed |
+| `v_market_by_price_band` | banda de precio | Igual, fail-closed |
+
+Las vistas de tenant son solo lectura, con `account_id`, sin PII. Las de mercado **no exponen** `account_id` ni `venue_id`.
+
+Un colectivo/organizador no lee esas vistas a grano venue: el repositorio exige `event_id IN (event_ids)` y borra `venue_id` / aforo / ocupación de las filas de evento.
+
+Contrato HTTP aún abierto (unidad de `revenue_cents`, promedio de ingresos del sector, recorte de audiencia en ventas): [metrics-dictionary.md](metrics-dictionary.md#contrato-pendiente-con-el-frontend).

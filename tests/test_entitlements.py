@@ -197,3 +197,19 @@ def test_readonly_sql_grants_the_allowlist() -> None:
         assert f"GRANT SELECT ON {name} " in sql
     assert "GRANT SELECT ON public.users" not in sql
     assert "public.tickets" not in sql
+
+
+def test_allowlist_matches_sql_view_files() -> None:
+    views_dir = Path("sql/views")
+    sql_files = sorted(views_dir.glob("*.sql"))
+    assert len(sql_files) == 15
+    names = discover_view_names()
+    assert len(names) == 15
+    for view in DISCOVER_VIEWS:
+        short = view.name.removeprefix("analytics.")
+        matches = [path for path in sql_files if path.stem.endswith(short)]
+        assert len(matches) == 1, short
+        body = matches[0].read_text(encoding="utf-8")
+        assert f"CREATE OR REPLACE VIEW {view.name}" in body
+        for col in view.columns:
+            assert col in body, f"{view.name} missing {col} in {matches[0].name}"

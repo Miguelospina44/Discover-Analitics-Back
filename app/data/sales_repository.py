@@ -83,7 +83,10 @@ class SalesRepository:
         period_start: date,
         period_end: date,
         venue_id: UUID | None = None,
+        actor: str = "venue",
     ) -> list[SalesPoint]:
+        if actor == "organizer":
+            return []
         seed = self._settings.uses_seed_facts
         params: dict = {"period_start": period_start, "period_end": period_end}
         if account_id is not None:
