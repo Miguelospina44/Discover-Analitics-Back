@@ -60,7 +60,8 @@ def _sql_body(sql: str) -> str:
 
 def test_expected_views_exist() -> None:
     names = {path.name for path in _sql_files()}
-    assert set(REQUIRED_VIEWS) <= names
+    assert set(REQUIRED_VIEWS) == names
+    assert len(REQUIRED_VIEWS) == 15
     assert "011_v_promoter_performance.sql" not in names
     assert "010_v_promo_performance.sql" not in names
 

@@ -4,6 +4,19 @@ on:
     branches: [main, dev]
   pull_request:
 jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks
+        run: |
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz" \
+            -o gitleaks.tgz
+          tar -xzf gitleaks.tgz gitleaks
+      - name: Scan working tree for secrets
+        run: ./gitleaks detect --source . --no-git --verbose --redact --config .gitleaks.toml
   test:
     runs-on: ubuntu-latest
     steps:

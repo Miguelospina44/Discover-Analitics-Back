@@ -226,3 +226,38 @@ Más datos → más refinamiento de plan. Orden de valor:
 ## Cómo aplicar las vistas
 
 En la Postgres de Discover, schema `analytics`, archivos `sql/views/001`–`015` en orden. Sin DDL sobre `public`. Otro agente gestiona secretos; este carril no lee `.env`.
+
+## Contrato pendiente con el frontend
+
+Tres huecos abiertos. **No se inventa campo ni se cambia la API aquí**; solo se anota lo que hoy existe.
+
+### Unidad de `revenue_cents` (pesos o centavos)
+
+- Discover guarda montos operativos en **pesos COP** (`orders.total_amount`, `tickets.price_paid_cop`, `events.price_cop`, `ticket_tiers.price_cop`).
+- Las vistas `analytics.v_*` hacen `pesos * 100` y publican `revenue_cents` (p. ej. `sql/views/002_v_sales_by_night.sql`, `003_v_ticket_sales_by_night.sql`).
+- La API expone `SalesPointOut.revenue_cents`. La medida `sales_by_night` declara `unit: "orders_and_cents"`.
+- El seed `analytics.fact_sales_by_night.revenue_cents` inserta valores del orden de 150 000–230 000 (`150000 + (DOY % 20) * 25000` en `alembic/versions/0002_fact_tables_seed.py`). Esa magnitud es de **pesos por noche**, no de centavos (150 000 centavos = 1 500 COP).
+
+Pendiente de producto: si el front trata `revenue_cents` como centavos (÷ 100 → pesos) o como pesos con nombre heredado del seed. Hasta que se cierre, no se renombra la columna ni se “corrige” el seed en este PR.
+
+### Promedio de ingresos del sector
+
+No existe en el contrato HTTP gremial.
+
+`GET /api/v1/metrics/gremial-benchmarks` serializa `GremialBenchmarksResponse`:
+
+- `avg_tickets_per_venue_night` / `median_tickets_per_venue_night`
+- `avg_orders_per_venue_night` / `median_orders_per_venue_night`
+- `accounts_in_sample`, `nights_in_sample`
+- `share_woman` / `share_man` / `share_other` / `share_undisclosed`
+- `note`
+
+No hay `avg_revenue_*`. El repositorio calcula `avg_revenue_cents_per_venue` para las vistas `v_market_by_*` (plan insight / `market_cross_tenant`); **no** lo incluye `GremialBenchmarksResponse`.
+
+### Recorte de audiencia en ventas
+
+No existe en la API de ventas.
+
+`GET /api/v1/metrics/sales-by-night` acepta `period_start`, `period_end`, `account_id`, `venue_id`. Devuelve `SalesPointOut`: `venue_id`, `night_date`, `order_count`, `revenue_cents` (y `account_id` opcional).
+
+No hay query de género, mix de compradores ni otro corte de audiencia. El filtro `gender` está en `nightly-attendance` y `attendance-by-gender`. El mix vive en `v_buyer_mix_*` (sin ruta HTTP de ventas por audiencia).

@@ -43,3 +43,14 @@ def test_super_admin_global_scope() -> None:
         user_id=uuid4(), account_id=uuid4(), role="super_admin", email="a@b.c"
     )
     assert principal.resolve_account_scope(None) is None
+
+
+def test_unknown_tenant_kind_is_rejected() -> None:
+    with pytest.raises(ForbiddenError):
+        Principal(
+            user_id=uuid4(),
+            account_id=uuid4(),
+            role="admin",
+            email="a@b.c",
+            tenant_kind="holding",
+        )

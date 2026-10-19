@@ -67,13 +67,18 @@ No hay plugin Cursor de Postgres ER. Usa:
 
 ## Fase B (Discover)
 
-Ver [`docs/phase-b-discover.md`](docs/phase-b-discover.md). Cambiar `DATA_SOURCE=discover` y aplicar vistas en `sql/views/`.
+Ver [`docs/phase-b-discover.md`](docs/phase-b-discover.md), [`docs/adr/0006-secure-discover-connection.md`](docs/adr/0006-secure-discover-connection.md) y [`docs/adr/0007-tenant-hierarchy-and-entitlements.md`](docs/adr/0007-tenant-hierarchy-and-entitlements.md).
+
+- `DATABASE_URL` sigue siendo la base **propia** (`discover_analytics`).
+- `DISCOVER_DATABASE_URL` es un DSN **aparte**, de solo lectura, con TLS.
+- Aplicar vistas en `sql/views/` sobre Discover y `GRANT SELECT` solo a esas vistas.
+- Credenciales solo en `.env` local (git-ignorado). No commitear secretos.
 
 ## Documentación
 
 - [docs/architecture.md](docs/architecture.md)
 - [docs/data-model.md](docs/data-model.md)
-- [docs/metrics-dictionary.md](docs/metrics-dictionary.md)
+- [docs/metrics-dictionary.md](docs/metrics-dictionary.md) (incluye contrato pendiente con el frontend)
 - [docs/dev-data-inventory.md](docs/dev-data-inventory.md)
 - [docs/adr/](docs/adr/)
 - [AGENTS.md](AGENTS.md)
