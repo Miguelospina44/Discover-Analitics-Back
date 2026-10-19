@@ -33,6 +33,7 @@ ORGANIZER_V1 = frozenset(
         "sales_velocity",
         "purchase_peak_hours",
         "buyer_mix",
+        "audience_by_gender_age",
         "event_comparison",
         "market_by_city",
         "market_by_venue_type",

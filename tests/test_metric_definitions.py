@@ -57,6 +57,7 @@ def test_v1_catalog_is_complete_for_owners() -> None:
         "period_comparison",
         "venue_comparison",
         "buyer_mix",
+        "audience_by_gender_age",
         "purchase_peak_hours",
         "activity_by_weekday",
         "market_by_city",

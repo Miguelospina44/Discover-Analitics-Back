@@ -568,6 +568,39 @@ V1_METRICS: tuple[MetricDefinition, ...] = (
         applies_to=VENUE_ONLY,
     ),
     MetricDefinition(
+        key="audience_by_gender_age",
+        title="Audiencia por género y rango de edad",
+        business_definition=(
+            "Retrato agregado de compradores por género autodeclarado y rango de edad. "
+            "Sirve para una gráfica de público (género × edad) sin ver a nadie en particular."
+        ),
+        grain="género × rango de edad, filtrado por account y (si aplica) event_ids",
+        formula=(
+            "COUNT(DISTINCT tickets.user_id) agrupado por gender y age_band; "
+            "edad = años a la fecha del evento; celdas n < 10 → otros o se omiten; "
+            "si el total del alcance < 10 no se publica nada"
+        ),
+        discover_source=(
+            "users.gender, users.birth_date (asumidos; verificar en Discover), "
+            "tickets.user_id, events.date"
+        ),
+        view_or_fact="analytics.v_audience_by_gender_age",
+        limitations=(
+            "Invitados (user_id NULL) fuera. Columnas users.gender y users.birth_date "
+            "deben existir en Discover; si el nombre real es otro, ajustar la vista 016. "
+            "No es mix de puerta (eso sigue en attendance_by_gender seed)."
+        ),
+        privacy=(
+            "Solo agregados. Sin user_id ni perfil. Null → sin_dato. "
+            "k-anonimato: cohorte o celda < 10 se suprime o se agrupa en otros."
+        ),
+        phase="v1",
+        seed_available=True,
+        value_line="audience",
+        suggested_plan="intermediate",
+        applies_to=VENUE_AND_ORGANIZER,
+    ),
+    MetricDefinition(
         key="market_by_city",
         title="Tendencia de mercado por ciudad",
         business_definition=(

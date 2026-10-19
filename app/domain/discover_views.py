@@ -11,7 +11,7 @@ class DiscoverView:
     access_grain: str = "venue"
 
 
-# Allowlist aligned with sql/views on the metrics PR (15 views). Output only.
+# Allowlist aligned with sql/views (16 views). Output only.
 # Views may join tickets.user_id internally; they must not expose it.
 # tenant_scoped=False: cross-tenant market aggregates — no account/venue/event IDs.
 DISCOVER_VIEWS: tuple[DiscoverView, ...] = (
@@ -128,6 +128,21 @@ DISCOVER_VIEWS: tuple[DiscoverView, ...] = (
         ),
         grain="account + venue",
         min_plan="pro",
+    ),
+    DiscoverView(
+        name="analytics.v_audience_by_gender_age",
+        columns=(
+            "account_id",
+            "event_id",
+            "venue_id",
+            "event_date",
+            "gender",
+            "age_band",
+            "headcount",
+        ),
+        grain="account + event + gender + age_band",
+        min_plan="growth",
+        access_grain="event",
     ),
     DiscoverView(
         name="analytics.v_market_by_city",

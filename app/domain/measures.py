@@ -52,6 +52,19 @@ ATTENDANCE_BY_GENDER = MeasureMeta(
     data_quality="missing",
 )
 
+AUDIENCE_BY_GENDER_AGE = MeasureMeta(
+    name="audience_by_gender_age",
+    title="Audiencia por género y rango de edad",
+    unit="headcount",
+    definition=(
+        "Compradores distintos por género declarado y rango de edad (18-24 … 55+). "
+        "Celdas con menos de 10 personas se agrupan en otros o se omiten. "
+        "Género o edad nulos van a sin_dato. No expone user_id ni filas individuales."
+    ),
+    as_of=None,
+    data_quality="missing",
+)
+
 GenderCode = Literal["woman", "man", "other", "undisclosed"]
 
 
