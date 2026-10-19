@@ -13,7 +13,9 @@ No hay un plugin MCP de Cursor que introspeccione Postgres y dibuje el ER solo.
 
 ## Tenant
 
-`account_id` (UUID) es el tenant. En Fase A es un UUID seed fijo (`a1111111-1111-4111-8111-111111111111`). En Fase B se alinea con `accounts.id` / `venues.account_id` de Discover. **Toda** query de negocio filtra por `account_id` del JWT.
+`account_id` (UUID) es el tenant raíz. En Fase A es un UUID seed fijo (`a1111111-1111-4111-8111-111111111111`). En Fase B se alinea con `accounts.id` / `venues.account_id` de Discover.
+
+Jerarquía (ADR 0007): **grupo → locales → eventos**. Un colectivo/organizador no hereda el venue: solo vistas por evento filtradas por `event_ids` (más mercado según plan). **Toda** query de negocio aplica `AccessScope` (hoy el filtro SQL de rutas vivas sigue siendo `account_id`; `event_ids` quedan listos en dominio). El plan de pago recorta vistas; el `tenant_kind` recorta el grano.
 
 ## Capas
 
@@ -24,7 +26,7 @@ No hay un plugin MCP de Cursor que introspeccione Postgres y dibuje el ER solo.
 | Hechos seed | `dim_venues`, `fact_nightly_attendance`, `fact_sales_by_night` | Seed / migración | Métricas sin Discover |
 | Derivado Discover | `v_nightly_attendance`, `v_sales_by_night` | Solo lectura | Fase B sobre `public` |
 
-`DATA_SOURCE=seed` → repos leen facts. `DATA_SOURCE=discover` → repos leen vistas.
+`DATA_SOURCE=seed` → repos leen facts en la base propia. `DATA_SOURCE=discover` → repos leen vistas por un pool **aparte** (`DISCOVER_DATABASE_URL`), sin escribir en Discover.
 
 ## ER Fase A (`discover_analytics`)
 
@@ -110,3 +112,5 @@ Hechos: 14 noches (2026-08-01 … 2026-08-14) × 2 venues.
 ## Fase B (derivado Discover)
 
 Ver [phase-b-discover.md](phase-b-discover.md). Las vistas viven en `sql/views/` y se aplican sobre la Postgres de Discover; la app no duplica `orders`/`tickets`.
+
+Las 15 vistas `analytics.v_*` y sus columnas permitidas están en [architecture.md](architecture.md#minimizaci%C3%B3n-de-datos) y [`app/domain/discover_views.py`](../app/domain/discover_views.py). Las `v_market_by_*` no llevan `account_id` (agregado entre clientes). No se leen `public.users` (ni `password`/`password_hash`/email/teléfono/`user_id` expuesto), ni detalle de compradores o pagos.

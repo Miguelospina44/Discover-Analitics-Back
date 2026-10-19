@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Query
 from sqlalchemy.exc import ProgrammingError
 
-from app.api.deps import AuthedDbSession, CurrentPrincipal, CurrentSettings
+from app.api.deps import CurrentPrincipal, CurrentSettings, MetricsDbSession
 from app.api.v1.schemas import (
     AttendancePointOut,
     GenderMeasureResponse,
@@ -40,7 +40,7 @@ def _gender_param(gender: str | None) -> str | None:
 
 @router.get("/nightly-attendance", response_model=MeasureResponse)
 async def nightly_attendance(
-    session: AuthedDbSession,
+    session: MetricsDbSession,
     principal: CurrentPrincipal,
     settings: CurrentSettings,
     period_start: date = Query(...),
@@ -49,7 +49,12 @@ async def nightly_attendance(
     venue_id: UUID | None = Query(None),
     gender: str | None = Query(None),
 ) -> MeasureResponse:
-    scope_id = principal.resolve_account_scope(account_id)
+    scope = principal.resolve_access_scope(
+        requested_account=account_id,
+        requested_venue=venue_id,
+        measure=NIGHTLY_ATTENDANCE.name,
+    )
+    scope_id = scope.account_id
     try:
         points = await AttendanceRepository(session, settings).list_for_scope(
             scope_id,
@@ -87,7 +92,7 @@ async def nightly_attendance(
 
 @router.get("/sales-by-night", response_model=SalesMeasureResponse)
 async def sales_by_night(
-    session: AuthedDbSession,
+    session: MetricsDbSession,
     principal: CurrentPrincipal,
     settings: CurrentSettings,
     period_start: date = Query(...),
@@ -95,7 +100,12 @@ async def sales_by_night(
     account_id: UUID | None = Query(None),
     venue_id: UUID | None = Query(None),
 ) -> SalesMeasureResponse:
-    scope_id = principal.resolve_account_scope(account_id)
+    scope = principal.resolve_access_scope(
+        requested_account=account_id,
+        requested_venue=venue_id,
+        measure=SALES_BY_NIGHT.name,
+    )
+    scope_id = scope.account_id
     try:
         points = await SalesRepository(session, settings).list_for_scope(
             scope_id,
@@ -133,7 +143,7 @@ async def sales_by_night(
 
 @router.get("/attendance-by-gender", response_model=GenderMeasureResponse)
 async def attendance_by_gender(
-    session: AuthedDbSession,
+    session: MetricsDbSession,
     principal: CurrentPrincipal,
     settings: CurrentSettings,
     period_start: date = Query(...),
@@ -142,7 +152,12 @@ async def attendance_by_gender(
     venue_id: UUID | None = Query(None),
     gender: str | None = Query(None),
 ) -> GenderMeasureResponse:
-    scope_id = principal.resolve_account_scope(account_id)
+    scope = principal.resolve_access_scope(
+        requested_account=account_id,
+        requested_venue=venue_id,
+        measure=ATTENDANCE_BY_GENDER.name,
+    )
+    scope_id = scope.account_id
     try:
         result = await GenderRepository(session, settings).list_for_scope(
             scope_id,
@@ -181,13 +196,13 @@ async def attendance_by_gender(
 
 @router.get("/gremial-benchmarks", response_model=GremialBenchmarksResponse)
 async def gremial_benchmarks(
-    session: AuthedDbSession,
+    session: MetricsDbSession,
     principal: CurrentPrincipal,
     settings: CurrentSettings,
     period_start: date = Query(...),
     period_end: date = Query(...),
 ) -> GremialBenchmarksResponse:
-    _ = principal
+    principal.require_entitlement("gremial_benchmarks")
     try:
         bench = await BenchmarkRepository(session, settings).gremial(period_start, period_end)
     except ProgrammingError:

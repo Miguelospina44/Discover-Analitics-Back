@@ -3,25 +3,48 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.errors import register_error_handlers
 from app.api.v1 import accounts, auth, consulting, engagements, health, metrics, venues
 from app.bootstrap import ensure_bootstrap_admin
 from app.core.config import get_settings
 from app.core.logging import configure_logging
-from app.infra.db import create_session_factory
+from app.infra.db import create_discover_session_factory, create_session_factory
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
     configure_logging(settings)
+    logger = logging.getLogger(__name__)
+
+    config_errors = settings.validate_startup()
+    if config_errors:
+        for error in config_errors:
+            logger.error("Error de configuración: %s", error)
+        raise ValueError(
+            "Configuración inválida. Verifica las variables de entorno según .env.example"
+        )
+
     factory = create_session_factory(settings)
     app.state.session_factory = factory
+
+    discover_factory = None
+    if settings.uses_discover_source:
+        discover_factory = create_discover_session_factory(settings)
+        if discover_factory is None:
+            logger.error("DATA_SOURCE=discover sin pool de solo lectura")
+            raise ValueError(
+                "Configuración inválida. Verifica las variables de entorno según .env.example"
+            )
+        logger.info("Pool de conexión a Discover (solo lectura) inicializado")
+    app.state.discover_session_factory = discover_factory
+
     try:
         await ensure_bootstrap_admin(factory, settings)
-    except OSError:
-        logging.getLogger(__name__).warning("Bootstrap omitido: base no disponible")
+    except (OSError, SQLAlchemyError, TimeoutError, ConnectionError):
+        logger.warning("Bootstrap omitido: base no disponible")
     yield
 
 
