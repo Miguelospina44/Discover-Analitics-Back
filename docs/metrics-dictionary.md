@@ -311,3 +311,99 @@ No existe en la API de ventas.
 `GET /api/v1/metrics/sales-by-night` acepta `period_start`, `period_end`, `account_id`, `venue_id`. Devuelve `SalesPointOut`: `venue_id`, `night_date`, `order_count`, `revenue_cents` (y `account_id` opcional).
 
 No hay query de género, mix de compradores ni otro corte de audiencia. El filtro `gender` está en `nightly-attendance` y `attendance-by-gender`. El mix vive en `v_buyer_mix_*` (sin ruta HTTP de ventas por audiencia).
+
+## Fuente: respuestas de detalles de evento (Google Form)
+
+Los colectivos informan a Discover por el form “Detalles Evento”. Analytics lee la pestaña `Respuestas de formulario 1` (rango `A:M`) en solo lectura. Contrato: [ADR 0008](adr/0008-event-form-sheets.md).
+
+**Privacidad.** Correo, número de cuenta, banco y cédula/NIT no salen del parser. Alias de colectivo en `app/data/collective_aliases.json`. Filas sin mapa: `sin_asignar`, solo `super_admin`.
+
+**Quién llama.** Staff Discover (`super_admin`) ve todo. Colectivo/organizador ve lo suyo. Venue/grupo → 403.
+
+**Endpoints.**
+
+- `GET /api/v1/event-submissions` — filtros: `period_start`, `period_end` (fecha del evento), `collective`, `presale`, `commission`
+- `GET /api/v1/event-submissions/summary` — mismos filtros; KPIs y distribuciones
+
+**JSON de ejemplo (fixture, `is_demo=true`):**
+
+```json
+{
+  "name": "event_submissions",
+  "title": "Respuestas de detalles de evento",
+  "data_source": "fixture",
+  "is_demo": true,
+  "demo_label": "Datos de ejemplo (EVENT_FORM_SOURCE=fixture). No son respuestas del Google Form real.",
+  "as_of": "2026-10-25",
+  "scope": "admin",
+  "unmapped_visible": true,
+  "count": 2,
+  "items": [
+    {
+      "submitted_at": "2026-09-01T10:15:00-05:00",
+      "event_at": "2026-09-15T22:00:00-05:00",
+      "event_at_raw": "15/09/2026 22:00:00",
+      "collective_raw": "Coffe",
+      "collective_name": "Coffee Club",
+      "account_id": "c3333333-3333-4333-8333-333333333301",
+      "assignment_status": "mapped",
+      "event_name": "Martes de casa",
+      "flyer_url": "https://example.com/flyers/martes",
+      "has_presale": true,
+      "commission": "15",
+      "exclusive_benefit": "2x1 en segundo trago",
+      "promotion_commitments": "Stories + reel",
+      "payment_method": "Transferencia"
+    },
+    {
+      "submitted_at": "2026-09-08T11:02:00-05:00",
+      "event_at": "2026-09-20T23:00:00-05:00",
+      "event_at_raw": "20/09/2026 23:00:00",
+      "collective_raw": "Coffee Club",
+      "collective_name": "Coffee Club",
+      "account_id": "c3333333-3333-4333-8333-333333333301",
+      "assignment_status": "mapped",
+      "event_name": "Cierre de mes",
+      "flyer_url": "https://example.com/flyers/cierre",
+      "has_presale": false,
+      "commission": "11.5",
+      "exclusive_benefit": "Meet & greet",
+      "promotion_commitments": "Newsletter",
+      "payment_method": "Efectivo"
+    }
+  ]
+}
+```
+
+Resumen (mismos flags `is_demo` / `data_source`):
+
+```json
+{
+  "name": "event_submissions_summary",
+  "scope": "admin",
+  "kpis": {
+    "event_count": 5,
+    "collective_count": 2,
+    "presale_pct": 75.0,
+    "events_this_month": 2,
+    "top_collective": {"name": "Coffee Club", "event_count": 2}
+  },
+  "unmapped_count": 1,
+  "distributions": {
+    "by_commission": [
+      {"key": "10", "count": 1},
+      {"key": "11.5", "count": 1},
+      {"key": "15", "count": 1},
+      {"key": "20", "count": 1},
+      {"key": "tarifa especial", "count": 1}
+    ],
+    "by_presale": [
+      {"key": "si", "count": 3},
+      {"key": "no", "count": 1},
+      {"key": "sin_dato", "count": 1}
+    ]
+  }
+}
+```
+
+`events_this_month` usa America/Bogota. En `EVENT_FORM_SOURCE=sheets` el contrato es idéntico con `is_demo=false`.

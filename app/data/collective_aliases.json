@@ -1,0 +1,24 @@
+{
+  "accounts": [
+    {
+      "account_id": "c3333333-3333-4333-8333-333333333301",
+      "canonical_name": "Coffee Club",
+      "aliases": [
+        "coffee club",
+        "coffe",
+        "coffe club",
+        "coffee",
+        "colectivo coffee club"
+      ]
+    },
+    {
+      "account_id": "c3333333-3333-4333-8333-333333333302",
+      "canonical_name": "Selva Sonora",
+      "aliases": [
+        "selva sonora",
+        "selva",
+        "selvasonora"
+      ]
+    }
+  ]
+}
