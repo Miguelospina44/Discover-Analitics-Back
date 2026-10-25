@@ -210,6 +210,62 @@ class RecommendationOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class EventSubmissionOut(BaseModel):
+    submitted_at: datetime | None
+    event_at: datetime | None
+    event_at_raw: str
+    collective_raw: str
+    collective_name: str | None
+    account_id: UUID | None
+    assignment_status: str
+    event_name: str
+    flyer_url: str
+    has_presale: bool | None
+    commission: str
+    exclusive_benefit: str
+    promotion_commitments: str
+    payment_method: str
+
+
+class EventSubmissionListResponse(BaseModel):
+    name: str
+    title: str
+    data_source: str
+    is_demo: bool
+    demo_label: str | None = None
+    as_of: date
+    scope: str
+    unmapped_visible: bool
+    count: int
+    items: list[EventSubmissionOut]
+
+
+class EventSubmissionBucketOut(BaseModel):
+    key: str
+    count: int
+
+
+class EventSubmissionKpisOut(BaseModel):
+    event_count: int
+    collective_count: int
+    presale_pct: float | None
+    events_this_month: int
+    top_collective: dict | None
+
+
+class EventSubmissionSummaryResponse(BaseModel):
+    name: str
+    title: str
+    data_source: str
+    is_demo: bool
+    demo_label: str | None = None
+    as_of: date
+    scope: str
+    kpis: EventSubmissionKpisOut
+    unmapped_count: int
+    distributions: dict[str, list[EventSubmissionBucketOut]]
+
+
 class HealthResponse(BaseModel):
     status: str
     app: str

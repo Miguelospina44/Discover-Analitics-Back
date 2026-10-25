@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -7,6 +8,7 @@ from app.domain.entitlements import is_known_plan
 from app.domain.tenant import is_known_tenant_kind
 
 DataSource = Literal["seed", "discover"]
+EventFormSource = Literal["fixture", "sheets"]
 
 _DEV_JWT_SECRET = "insecure-dev-secret"
 _SSL_MODES = ("sslmode=require", "sslmode=verify-ca", "sslmode=verify-full")
@@ -47,6 +49,14 @@ class Settings(BaseSettings):
     cache_ttl_seconds: int = 60
     default_plan: str = "growth"
     default_tenant_kind: str = "venue"
+
+    event_form_source: EventFormSource = "fixture"
+    google_sheets_credentials_file: str | None = None
+    event_form_sheet_id: str | None = None
+    event_form_sheet_tab: str = "Respuestas de formulario 1"
+    event_form_sheet_range: str = "A:M"
+    event_form_cache_ttl_seconds: int = 300
+    collective_aliases_file: str | None = None
 
     @property
     def cors_origin_list(self) -> list[str]:
@@ -97,8 +107,27 @@ class Settings(BaseSettings):
             errors.append("QUERY_TIMEOUT_SECONDS debe ser mayor que 0")
         return errors
 
+    def validate_event_form_config(self) -> list[str]:
+        errors: list[str] = []
+        if self.event_form_source != "sheets":
+            return errors
+        sheet_id = (self.event_form_sheet_id or "").strip()
+        credentials = (self.google_sheets_credentials_file or "").strip()
+        if not sheet_id:
+            errors.append("EVENT_FORM_SHEET_ID requerido cuando EVENT_FORM_SOURCE=sheets")
+        if not credentials:
+            errors.append(
+                "GOOGLE_SHEETS_CREDENTIALS_FILE requerido cuando EVENT_FORM_SOURCE=sheets"
+            )
+        elif not Path(credentials).is_file():
+            errors.append("GOOGLE_SHEETS_CREDENTIALS_FILE no existe")
+        if self.event_form_cache_ttl_seconds < 1:
+            errors.append("EVENT_FORM_CACHE_TTL_SECONDS debe ser mayor que 0")
+        return errors
+
     def validate_startup(self) -> list[str]:
         errors = self.validate_discover_config()
+        errors.extend(self.validate_event_form_config())
         if not is_known_plan(self.default_plan):
             errors.append("DEFAULT_PLAN inválido")
         if not is_known_tenant_kind(self.default_tenant_kind):

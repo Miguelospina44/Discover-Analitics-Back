@@ -6,7 +6,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.errors import register_error_handlers
-from app.api.v1 import accounts, auth, consulting, engagements, health, metrics, venues
+from app.api.v1 import (
+    accounts,
+    auth,
+    consulting,
+    engagements,
+    event_submissions,
+    health,
+    metrics,
+    venues,
+)
 from app.bootstrap import ensure_bootstrap_admin
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -65,6 +74,7 @@ def create_app() -> FastAPI:
     app.include_router(venues.router, prefix=settings.api_prefix)
     app.include_router(engagements.router, prefix=settings.api_prefix)
     app.include_router(metrics.router, prefix=settings.api_prefix)
+    app.include_router(event_submissions.router, prefix=settings.api_prefix)
     app.include_router(consulting.router, prefix=settings.api_prefix)
     return app
 

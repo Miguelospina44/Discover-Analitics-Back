@@ -80,5 +80,5 @@ Ver [`docs/phase-b-discover.md`](docs/phase-b-discover.md), [`docs/adr/0006-secu
 - [docs/data-model.md](docs/data-model.md)
 - [docs/metrics-dictionary.md](docs/metrics-dictionary.md) (incluye contrato pendiente con el frontend)
 - [docs/dev-data-inventory.md](docs/dev-data-inventory.md)
-- [docs/adr/](docs/adr/)
+- [docs/adr/](docs/adr/) (0008 = Google Form de detalles de evento)
 - [AGENTS.md](AGENTS.md)

@@ -3,7 +3,8 @@ import re
 _DSN_RE = re.compile(r"(postgresql(?:\+\w+)?://)([^:/@]+):([^@/]+)@", re.IGNORECASE)
 _SECRET_ASSIGN_RE = re.compile(
     r"(?i)\b(password|secret|dsn|database_url|alembic_database_url|"
-    r"discover_database_url|jwt_secret|jwt_token|access_token)\b\s*[=:]\s*\S+"
+    r"discover_database_url|jwt_secret|jwt_token|access_token|"
+    r"google_sheets_credentials_file|private_key)\b\s*[=:]\s*\S+"
 )
 _EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 
